@@ -301,6 +301,17 @@ go get github.com/muyi-zcy/my-testgogogo
 - [demo 示例](examples/demo/README.md) — 商品商城 + demoauth
 - [library 示例](examples/library/README.md) — 图书管理 + 内置 login
 
+## Cursor Skills
+
+仓库内置 Agent Skills，在 Cursor 中可自动辅助编写测试、配置认证与脚手架代码：
+
+| Skill | 用途 |
+|-------|------|
+| `my-testgogogo` | 框架总览：命令、决策树、API/Flow/报告/认证 |
+| `my-testgogogo-scaffold` | 脚手架：新建测试、apistep、示例、自定义 Provider |
+
+技能文件位于 `.cursor/skills/`，含代码模板（`templates.md`）与认证速查（`auth.md`）。
+
 ## License
 
 MIT
