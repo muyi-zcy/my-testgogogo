@@ -1,0 +1,17 @@
+# 主配置
+active: local
+
+test:
+  skip_integration: false
+
+auth:
+  # 自定义 Provider，见 internal/demoauth/provider.go
+  provider: demoauth
+  cache_enabled: true
+  cache_dir: .cache/auth
+  cache_ttl_hours: 168
+
+report:
+  enabled: true
+  output_dir: reports
+  staging_dir: reports/staging

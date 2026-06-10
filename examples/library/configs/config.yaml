@@ -1,0 +1,28 @@
+# 主配置
+active: local
+
+test:
+  skip_integration: false
+
+auth:
+  # 使用框架内置 login Provider（YAML 配置，无需写代码）
+  provider: login
+  cache_enabled: true
+  cache_dir: .cache/auth
+  cache_ttl_hours: 168
+  login:
+    url: /api/auth/login
+    method: POST
+    without_auth: true
+    body:
+      username: "{{user.username}}"
+      password: "{{user.password}}"
+    token_path: token
+    validate:
+      url: /api/auth/me
+      method: GET
+
+report:
+  enabled: true
+  output_dir: reports
+  staging_dir: reports/staging

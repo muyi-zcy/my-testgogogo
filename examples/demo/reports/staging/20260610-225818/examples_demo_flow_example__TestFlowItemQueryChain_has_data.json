@@ -1,0 +1,23 @@
+{
+  "run_id": "20260610-225818",
+  "package": "examples/demo/flow/example",
+  "test_name": "TestFlowItemQueryChain/has_data",
+  "title": "商品查询流程验证（有数据分支）",
+  "category": "功能测试",
+  "description": "系统信息 → 用户信息 → 商品列表 → 按 vars 编码过滤",
+  "status": "FAIL",
+  "duration": "5ms",
+  "started_at": "2026-06-10T22:58:18.019558+08:00",
+  "finished_at": "2026-06-10T22:58:18.025549+08:00",
+  "steps": [
+    {
+      "index": 1,
+      "name": "get system info",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:18.020163+08:00",
+      "finished_at": "2026-06-10T22:58:18.024128+08:00",
+      "duration": "3ms",
+      "duration_ms": 3
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "run_id": "20260610-225818",
+  "package": "examples/demo/flow/example",
+  "test_name": "TestFlowItemQueryChain/empty_list",
+  "title": "商品查询流程验证（空列表分支）",
+  "category": "功能测试",
+  "description": "系统信息 → 用户信息 → 空列表 → 验证空结果分页",
+  "status": "FAIL",
+  "duration": "1ms",
+  "started_at": "2026-06-10T22:58:18.026882+08:00",
+  "finished_at": "2026-06-10T22:58:18.028363+08:00",
+  "steps": [
+    {
+      "index": 1,
+      "name": "get system info",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:18.027018+08:00",
+      "finished_at": "2026-06-10T22:58:18.027523+08:00",
+      "duration": "0ms"
+    }
+  ]
+}

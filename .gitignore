@@ -1,0 +1,27 @@
+# Binaries
+bin/
+*.exe
+*.test
+
+# Coverage & reports
+coverage.out
+*.html
+reports/staging/
+reports/**/*.md
+reports/**/*.json
+!reports/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Auth token cache
+.cache/
+examples/*/.cache/
+
+# Local config overrides (may contain secrets)
+configs/*.override.yaml
+examples/*/configs/*.override.yaml

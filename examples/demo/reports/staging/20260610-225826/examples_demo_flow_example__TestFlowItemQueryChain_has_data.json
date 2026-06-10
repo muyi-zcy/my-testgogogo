@@ -1,0 +1,81 @@
+{
+  "run_id": "20260610-225826",
+  "package": "examples/demo/flow/example",
+  "test_name": "TestFlowItemQueryChain/has_data",
+  "title": "商品查询流程验证（有数据分支）",
+  "category": "功能测试",
+  "description": "系统信息 → 用户信息 → 商品列表 → 按 vars 编码过滤",
+  "status": "PASS",
+  "duration": "4ms",
+  "started_at": "2026-06-10T22:58:26.745906+08:00",
+  "finished_at": "2026-06-10T22:58:26.750316+08:00",
+  "steps": [
+    {
+      "index": 1,
+      "name": "get system info",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.746082+08:00",
+      "finished_at": "2026-06-10T22:58:26.748814+08:00",
+      "duration": "2ms",
+      "duration_ms": 2,
+      "result": {
+        "system": {
+          "name": "my-testgogogo-demo",
+          "version": "1.0.0"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "name": "get user info",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.749662+08:00",
+      "finished_at": "2026-06-10T22:58:26.749858+08:00",
+      "duration": "0ms",
+      "result": {
+        "nickName": "Demo User",
+        "permissions": 2,
+        "roleCount": 1,
+        "username": "demo"
+      }
+    },
+    {
+      "index": 3,
+      "name": "list items",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.749858+08:00",
+      "finished_at": "2026-06-10T22:58:26.750104+08:00",
+      "duration": "0ms",
+      "result": {
+        "current": 1,
+        "firstItem": {
+          "code": "SKU-001",
+          "name": "Demo Item Alpha"
+        },
+        "size": 10,
+        "total": 3
+      }
+    },
+    {
+      "index": 4,
+      "name": "query item by code from vars",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.750105+08:00",
+      "finished_at": "2026-06-10T22:58:26.750248+08:00",
+      "duration": "0ms",
+      "result": {
+        "matched": {
+          "id": "1",
+          "code": "SKU-001",
+          "name": "Demo Item Alpha"
+        },
+        "queryCode": "SKU-001",
+        "total": 1
+      }
+    }
+  ],
+  "logs": [
+    "走有数据分支：按编码精确过滤",
+    "用户具备角色权限，流程完整执行"
+  ]
+}

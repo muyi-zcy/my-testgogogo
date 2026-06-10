@@ -1,0 +1,8 @@
+base_url: http://localhost:18081
+timeout_seconds: 10
+
+user:
+  username: librarian
+  password: lib123
+
+token: ""

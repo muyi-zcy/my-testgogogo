@@ -1,0 +1,8 @@
+base_url: http://localhost:18080
+timeout_seconds: 10
+
+user:
+  username: demo
+  password: demo123
+
+token: ""

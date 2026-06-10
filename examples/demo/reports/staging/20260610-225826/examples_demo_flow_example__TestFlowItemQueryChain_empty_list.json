@@ -1,0 +1,72 @@
+{
+  "run_id": "20260610-225826",
+  "package": "examples/demo/flow/example",
+  "test_name": "TestFlowItemQueryChain/empty_list",
+  "title": "商品查询流程验证（空列表分支）",
+  "category": "功能测试",
+  "description": "系统信息 → 用户信息 → 空列表 → 验证空结果分页",
+  "status": "PASS",
+  "duration": "0ms",
+  "started_at": "2026-06-10T22:58:26.750811+08:00",
+  "finished_at": "2026-06-10T22:58:26.75172+08:00",
+  "steps": [
+    {
+      "index": 1,
+      "name": "get system info",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.750869+08:00",
+      "finished_at": "2026-06-10T22:58:26.750992+08:00",
+      "duration": "0ms",
+      "result": {
+        "system": {
+          "name": "my-testgogogo-demo",
+          "version": "1.0.0"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "name": "get user info",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.751202+08:00",
+      "finished_at": "2026-06-10T22:58:26.751377+08:00",
+      "duration": "0ms",
+      "result": {
+        "nickName": "Demo User",
+        "permissions": 2,
+        "roleCount": 1,
+        "username": "demo"
+      }
+    },
+    {
+      "index": 3,
+      "name": "list items",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.751382+08:00",
+      "finished_at": "2026-06-10T22:58:26.751529+08:00",
+      "duration": "0ms",
+      "result": {
+        "current": 1,
+        "size": 10,
+        "total": 0
+      }
+    },
+    {
+      "index": 4,
+      "name": "verify empty list pagination",
+      "status": "PASS",
+      "started_at": "2026-06-10T22:58:26.75153+08:00",
+      "finished_at": "2026-06-10T22:58:26.75167+08:00",
+      "duration": "0ms",
+      "result": {
+        "records": 0,
+        "total": 0
+      }
+    }
+  ],
+  "logs": [
+    "商品列表为空，走空列表分支",
+    "走空列表分支：验证空结果分页结构",
+    "用户具备角色权限，流程完整执行"
+  ]
+}
