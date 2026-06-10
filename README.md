@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="testgogogo" width="120" height="120" />
+</p>
+
 # my-testgogogo
 
 Go API 集成测试框架：单接口契约验证、Flow 流程编排、可插拔认证、Markdown 测试报告。
