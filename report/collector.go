@@ -23,6 +23,7 @@ type Collector struct {
 	vars          []VarRecord
 	logs          []string
 	finished      bool
+	currentInput  map[string]any // 当前步骤的入参缓冲区
 	currentResult map[string]any // 当前步骤的结构化结果缓冲区
 }
 
@@ -33,6 +34,8 @@ func (n *noopCollector) Step(string, func(*testing.T)) {}
 func (n *noopCollector) Note(string)                   {}
 func (n *noopCollector) Var(string, any)               {}
 func (n *noopCollector) Record(string, any)            {}
+func (n *noopCollector) RecordInput(string, any)       {}
+func (n *noopCollector) SetInput(any)                  {}
 func (n *noopCollector) SetResult(any)                 {}
 
 // Reporter 报告采集接口；未启用时返回 no-op 实现。
@@ -45,6 +48,10 @@ type Reporter interface {
 	Var(key string, value any)
 	// Record 记录当前步骤的结构化字段（仅 Step 回调内有效）。
 	Record(key string, value any)
+	// RecordInput 记录当前步骤的入参字段（仅 Step 回调内有效）。
+	RecordInput(key string, value any)
+	// SetInput 一次性设置当前步骤的入参（map/struct）。
+	SetInput(value any)
 	// SetResult 一次性设置当前步骤的结构化结果（map/struct）。
 	SetResult(value any)
 }
@@ -79,12 +86,15 @@ func Enable(t *testing.T, meta Meta) Reporter {
 func (c *Collector) Step(name string, fn func(t *testing.T)) {
 	c.t.Helper()
 	stepStart := time.Now()
+	stepInput := make(map[string]any)
 	stepResult := make(map[string]any)
 	passed := true
 	detail := ""
 
+	c.currentInput = stepInput
 	c.currentResult = stepResult
 	defer func() {
+		c.currentInput = nil
 		c.currentResult = nil
 		stepEnd := time.Now()
 		elapsed := stepEnd.Sub(stepStart)
@@ -103,6 +113,7 @@ func (c *Collector) Step(name string, fn func(t *testing.T)) {
 			Duration:   formatDuration(elapsed),
 			DurationMs: elapsed.Milliseconds(),
 			Detail:     detail,
+			Input:      cloneMap(stepInput),
 			Result:     cloneMap(stepResult),
 		})
 	}()
@@ -145,6 +156,30 @@ func (c *Collector) Record(key string, value any) {
 		return
 	}
 	c.currentResult[key] = formatRecordValue(value)
+}
+
+// RecordInput 记录当前步骤的入参字段；若不在 Step 内则降级为 Var。
+func (c *Collector) RecordInput(key string, value any) {
+	if c.currentInput == nil {
+		c.Var("input."+key, value)
+		return
+	}
+	c.currentInput[key] = formatRecordValue(value)
+}
+
+// SetInput 将入参合并到当前步骤的 input map 中。
+func (c *Collector) SetInput(value any) {
+	if c.currentInput == nil {
+		return
+	}
+	normalized, err := normalizeResult(value)
+	if err != nil {
+		c.currentInput["_error"] = err.Error()
+		return
+	}
+	for key, val := range normalized {
+		c.currentInput[key] = val
+	}
 }
 
 // SetResult 将结构化结果合并到当前步骤的结果 map 中。

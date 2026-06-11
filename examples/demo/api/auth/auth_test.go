@@ -24,6 +24,10 @@ func TestLogin(t *testing.T) {
 	defer cancel()
 
 	r.Step("authenticate", func(t *testing.T) {
+		r.SetInput(map[string]any{
+			"username": cfg.User.Username,
+			"provider": cfg.Auth.Provider,
+		})
 		cred, err := auth.Authenticate(ctx, c, cfg)
 		require.NoError(t, err)
 		assert.NotEmpty(t, cred.Token)
@@ -46,6 +50,10 @@ func TestGetMe(t *testing.T) {
 	defer cancel()
 
 	r.Step("get me", func(t *testing.T) {
+		r.SetInput(map[string]any{
+			"method": "GET",
+			"path":   "/api/auth/me",
+		})
 		info, err := apistep.GetMe(ctx, c)
 		require.NoError(t, err)
 		assert.NotEmpty(t, info.User.Username)
@@ -72,6 +80,11 @@ func TestLoginWithWrongPassword(t *testing.T) {
 	r.Step("login with bad password", func(t *testing.T) {
 		badCfg := *cfg
 		badCfg.User.Password = "invalid-password"
+		r.SetInput(map[string]any{
+			"username": badCfg.User.Username,
+			"password": badCfg.User.Password,
+			"provider": badCfg.Auth.Provider,
+		})
 		_, err := auth.Authenticate(ctx, c, &badCfg)
 		require.Error(t, err)
 		r.SetResult(map[string]any{
@@ -92,6 +105,10 @@ func TestLogout(t *testing.T) {
 	defer cancel()
 
 	r.Step("logout", func(t *testing.T) {
+		r.SetInput(map[string]any{
+			"method": "GET",
+			"path":   "/api/auth/logout",
+		})
 		err := apistep.Logout(ctx, c)
 		require.NoError(t, err)
 		assert.Empty(t, c.Token())
@@ -99,6 +116,10 @@ func TestLogout(t *testing.T) {
 	})
 
 	r.Step("get me after logout", func(t *testing.T) {
+		r.SetInput(map[string]any{
+			"method": "GET",
+			"path":   "/api/auth/me",
+		})
 		_, err := apistep.GetMe(ctx, c)
 		require.Error(t, err)
 		r.SetResult(map[string]any{

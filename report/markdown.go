@@ -415,6 +415,11 @@ func renderStepDetails(steps []StepRecord) string {
 		}
 		b.WriteString("\n")
 
+		if len(step.Input) > 0 {
+			b.WriteString("**入参：**\n\n")
+			b.WriteString(renderStructuredResult(step.Input))
+			b.WriteString("\n")
+		}
 		if len(step.Result) > 0 {
 			b.WriteString("**结构化结果：**\n\n")
 			b.WriteString(renderStructuredResult(step.Result))

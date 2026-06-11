@@ -20,10 +20,12 @@ func TestItemList(t *testing.T) {
 	defer cancel()
 
 	r.Step("list items", func(t *testing.T) {
-		page, err := apistep.ListItems(ctx, c, apistep.ListParams{
+		params := apistep.ListParams{
 			PageNum:  1,
 			PageSize: 10,
-		})
+		}
+		r.SetInput(params)
+		page, err := apistep.ListItems(ctx, c, params)
 		require.NoError(t, err)
 		assert.PageNotEmpty(t, page.Total, page.Records)
 

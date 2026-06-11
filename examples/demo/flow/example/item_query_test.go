@@ -64,6 +64,10 @@ func runItemQueryFlow(t *testing.T, simulateEmptyList bool, title, description s
 	defer cancel()
 
 	r.Step("get system info", func(t *testing.T) {
+		r.SetInput(map[string]any{
+			"method": "GET",
+			"path":   "/api/system/info",
+		})
 		info, err := apistep.GetSystemInfo(ctx, c)
 		require.NoError(t, err)
 		require.NotEmpty(t, info["name"])
@@ -74,6 +78,10 @@ func runItemQueryFlow(t *testing.T, simulateEmptyList bool, title, description s
 	authClient := testkit.NewAuthenticatedClient(t)
 
 	r.Step("get user info", func(t *testing.T) {
+		r.SetInput(map[string]any{
+			"method": "GET",
+			"path":   "/api/auth/me",
+		})
 		userInfo, err := apistep.GetMe(ctx, authClient)
 		require.NoError(t, err)
 		require.NotEmpty(t, userInfo.User.Username)
@@ -96,6 +104,7 @@ func runItemQueryFlow(t *testing.T, simulateEmptyList bool, title, description s
 		if simulateEmptyList {
 			params.Code = nonexistentItemCode
 		}
+		r.SetInput(params)
 
 		page, err := apistep.ListItems(ctx, authClient, params)
 		require.NoError(t, err)
@@ -129,12 +138,14 @@ func runItemQueryFlow(t *testing.T, simulateEmptyList bool, title, description s
 		r.Note("走有数据分支：按编码精确过滤")
 		r.Step("query item by code from vars", func(t *testing.T) {
 			code := vars.MustString("firstItemCode")
-
-			page, err := apistep.ListItems(ctx, authClient, apistep.ListParams{
+			params := apistep.ListParams{
 				PageNum:  1,
 				PageSize: vars.MustInt("pageSize"),
 				Code:     code,
-			})
+			}
+			r.SetInput(params)
+
+			page, err := apistep.ListItems(ctx, authClient, params)
 			require.NoError(t, err)
 			require.NotEmpty(t, page.Records)
 			assert.Equal(t, code, page.Records[0].Code)
@@ -149,11 +160,14 @@ func runItemQueryFlow(t *testing.T, simulateEmptyList bool, title, description s
 	case "empty":
 		r.Note("走空列表分支：验证空结果分页结构")
 		r.Step("verify empty list pagination", func(t *testing.T) {
-			page, err := apistep.ListItems(ctx, authClient, apistep.ListParams{
+			params := apistep.ListParams{
 				PageNum:  1,
 				PageSize: vars.MustInt("pageSize"),
 				Code:     nonexistentItemCode,
-			})
+			}
+			r.SetInput(params)
+
+			page, err := apistep.ListItems(ctx, authClient, params)
 			require.NoError(t, err)
 			assert.Empty(t, page.Records)
 			assert.Zero(t, page.Total)

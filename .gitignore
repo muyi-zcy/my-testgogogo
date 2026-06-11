@@ -25,3 +25,4 @@ examples/*/.cache/
 # Local config overrides (may contain secrets)
 configs/*.override.yaml
 examples/*/configs/*.override.yaml
+/examples/wms/

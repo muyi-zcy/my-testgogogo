@@ -20,6 +20,10 @@ func TestSystemInfo(t *testing.T) {
 	defer cancel()
 
 	r.Step("get system info", func(t *testing.T) {
+		r.SetInput(map[string]any{
+			"method": "GET",
+			"path":   "/api/system/info",
+		})
 		info, err := apistep.GetSystemInfo(ctx, c)
 		require.NoError(t, err)
 		require.NotEmpty(t, info["name"])
