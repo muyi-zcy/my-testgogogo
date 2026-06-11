@@ -92,13 +92,8 @@ func renderBody(templates map[string]string, cfg *config.Config) map[string]stri
 		}
 	}
 	out := make(map[string]string, len(templates))
-	replacer := strings.NewReplacer(
-		"{{user.username}}", cfg.User.Username,
-		"{{user.password}}", cfg.User.Password,
-		"{{user.type}}", cfg.User.Type,
-	)
 	for key, value := range templates {
-		out[key] = replacer.Replace(value)
+		out[key] = cfg.Expand(value)
 	}
 	return out
 }

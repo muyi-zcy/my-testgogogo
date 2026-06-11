@@ -1,8 +1,8 @@
 // Package config 负责加载多环境 YAML 配置，合并根配置与环境配置，并提供认证相关默认值。
 //
 // 配置文件结构：
-//   - configs/config.yaml       根配置（active 环境、认证、报告等）
-//   - configs/<env>.yaml        环境配置（base_url、用户、Token 等）
+//   - configs/config.yaml       根配置（active 环境、认证、报告、test.vars 等）
+//   - configs/<env>.yaml        环境配置（base_url、用户、Token、vars 等）
 //   - configs/<env>.override.yaml  可选覆盖文件（本地私密配置，不入库）
 package config
 
@@ -27,7 +27,8 @@ type RootConfig struct {
 
 // TestRootConfig 测试相关全局开关。
 type TestRootConfig struct {
-	SkipIntegration bool `yaml:"skip_integration"` // true 时跳过所有集成测试
+	SkipIntegration bool           `yaml:"skip_integration"` // true 时跳过所有集成测试
+	Vars            map[string]any `yaml:"vars"`             // 跨环境共享的全局变量
 }
 
 // AuthRootConfig 认证 Provider 及 Token 缓存配置。
@@ -64,11 +65,12 @@ type UserConfig struct {
 
 // EnvConfig 对应 configs/<env>.yaml 的环境配置结构。
 type EnvConfig struct {
-	BaseURL        string     `yaml:"base_url"`
-	TimeoutSeconds int        `yaml:"timeout_seconds"`
-	User           UserConfig `yaml:"user"`
-	Token          string     `yaml:"token"`        // static_token 模式使用
-	CaptchaCode    string     `yaml:"captcha_code"` // 验证码（如需要）
+	BaseURL        string         `yaml:"base_url"`
+	TimeoutSeconds int            `yaml:"timeout_seconds"`
+	User           UserConfig     `yaml:"user"`
+	Token          string         `yaml:"token"`        // static_token 模式使用
+	CaptchaCode    string         `yaml:"captcha_code"` // 验证码（如需要）
+	Vars           map[string]any `yaml:"vars"`         // 环境级全局变量，覆盖 test.vars 同名项
 }
 
 // Config 是合并后的运行时配置，供测试框架各模块使用。
@@ -79,6 +81,7 @@ type Config struct {
 	User            UserConfig
 	Token           string
 	CaptchaCode     string
+	Vars            map[string]any // 合并后的全局变量：test.vars <- env vars
 	SkipIntegration bool
 	Auth            AuthRootConfig
 	AuthCache       AuthCacheConfig
@@ -120,6 +123,7 @@ func Load() (*Config, error) {
 		User:            envCfg.User,
 		Token:           envCfg.Token,
 		CaptchaCode:     envCfg.CaptchaCode,
+		Vars:            mergeVars(rootCfg.Test.Vars, envCfg.Vars),
 		SkipIntegration: rootCfg.Test.SkipIntegration,
 		Auth:            rootCfg.Auth,
 	}

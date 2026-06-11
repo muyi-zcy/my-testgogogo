@@ -44,7 +44,7 @@ make check         # fmt + build + 两个示例全量测试
 
 1. `go get github.com/muyi-zcy/my-testgogogo`
 2. 创建目录结构（见下方）
-3. 编写 `configs/config.yaml` + `configs/local.yaml`
+3. 编写 `configs/config.yaml` + `configs/local.yaml`（可在 `test.vars` / `vars` 中定义全局变量）
 4. 在 `apistep/` 封装 HTTP 调用，在 `api/` 写单接口测试
 5. 每个测试文件开头调用 `testkit.SkipIfDisabled(t)`
 

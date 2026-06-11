@@ -9,6 +9,8 @@ active: local
 
 test:
   skip_integration: false
+  vars:              # 可选：跨环境共享变量
+    page_size: 10
 
 auth:
   provider: login
@@ -41,6 +43,26 @@ timeout_seconds: 15
 user:
   username: testuser
   password: testpass
+
+vars:                # 可选：环境级变量，覆盖 test.vars 同名项
+  user_id: "1001"
+```
+
+测试内读取：
+
+```go
+// 推荐：自定义结构体，字段与 vars 键名通过 yaml tag 对应
+type TestVars struct {
+    UserID   string `yaml:"user_id"`
+    PageSize int    `yaml:"page_size"`
+}
+
+cfg := testkit.LoadConfig(t)
+vars := testkit.MustVars[TestVars](t, cfg)
+_ = vars.UserID
+
+// 或按 key 逐个读取
+userID := testkit.MustVarString(t, cfg, "user_id")
 ```
 
 ## apistep 封装模板

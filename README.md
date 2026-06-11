@@ -143,8 +143,8 @@ your-project/
 
 | 文件 | 用途 |
 |------|------|
-| `config.yaml` | 根配置：`active` 环境名、`test.skip_integration`、`auth`、`report` |
-| `local.yaml` | 环境配置：`base_url`、测试账号、`token` |
+| `config.yaml` | 根配置：`active` 环境名、`test.skip_integration`、`test.vars`、`auth`、`report` |
+| `local.yaml` | 环境配置：`base_url`、测试账号、`token`、`vars` |
 | `local.override.yaml` | 本地覆盖（密码、Token 等），不入库 |
 
 ### 最小配置示例
@@ -156,6 +156,8 @@ active: local
 
 test:
   skip_integration: false   # true 时跳过所有集成测试
+  vars:                     # 可选：跨环境共享的全局变量
+    page_size: 10
 
 auth:
   provider: login           # static_token / login / 自定义名
@@ -185,7 +187,31 @@ timeout_seconds: 15
 user:
   username: librarian
   password: lib123
+
+vars:                       # 可选：环境级全局变量，覆盖 test.vars 同名项
+  user_id: "1001"
+  page_size: 20
 ```
+
+在测试中读取：
+
+```go
+// 方式一：自定义结构体（推荐）
+type TestVars struct {
+    UserID   string `yaml:"user_id"`
+    PageSize int    `yaml:"page_size"`
+}
+
+cfg := testkit.LoadConfig(t)
+vars := testkit.MustVars[TestVars](t, cfg)
+_ = vars.UserID
+
+// 方式二：按 key 逐个读取
+userID := testkit.MustVarString(t, cfg, "user_id")
+pageSize := testkit.MustVarInt(t, cfg, "page_size")
+```
+
+`auth.login.body` 等字符串字段也支持 `{{vars.user_id}}` 模板（与 `{{user.username}}` 相同写法）。
 
 ### 跳过集成测试
 

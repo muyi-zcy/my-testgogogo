@@ -41,6 +41,30 @@ func LoadConfig(t *testing.T) *config.Config {
 	return cfg
 }
 
+// MustVarString 读取 configs 中定义的全局字符串变量，缺失时终止测试。
+func MustVarString(t *testing.T, cfg *config.Config, key string) string {
+	t.Helper()
+	val, err := cfg.VarString(key)
+	require.NoError(t, err, "config var %q", key)
+	return val
+}
+
+// MustVarInt 读取 configs 中定义的全局整型变量，缺失或类型不符时终止测试。
+func MustVarInt(t *testing.T, cfg *config.Config, key string) int {
+	t.Helper()
+	val, err := cfg.VarInt(key)
+	require.NoError(t, err, "config var %q", key)
+	return val
+}
+
+// MustVars 将 configs 中的 vars 解码为自定义结构体，失败时终止测试。
+func MustVars[T any](t *testing.T, cfg *config.Config) T {
+	t.Helper()
+	var vars T
+	require.NoError(t, cfg.VarsInto(&vars), "decode config vars")
+	return vars
+}
+
 // NewClient 根据配置创建未认证的 HTTP 客户端。
 func NewClient(t *testing.T, cfg *config.Config) *client.Client {
 	t.Helper()
