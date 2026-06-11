@@ -31,8 +31,7 @@ auth:
 
 report:
   enabled: true
-  output_dir: reports
-  staging_dir: reports/staging
+  base_dir: reports
 ```
 
 ## configs/local.yaml
@@ -270,7 +269,7 @@ run:
     @chmod +x ./scripts/run.sh && ./scripts/run.sh
 
 test-report:
-    @mkdir -p reports/staging
+    @mkdir -p reports/api/staging reports/flow/staging
     @MY_TESTGOGOGO_REPORT_RUN_ID=$(RUN_ID) ./scripts/run.sh -json 2>&1 \
         | go run <path-to>/cmd/my-testgogogo report --run-id $(RUN_ID) \
         --command "go test ./... -json -count=1"

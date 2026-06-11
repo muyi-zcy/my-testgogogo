@@ -1,4 +1,4 @@
-// Command my-testgogogo 是测试框架的 CLI 工具，当前支持 report 子命令。
+// Command my-testgogogo 是测试框架的 CLI 工具，支持 report 与 load 子命令。
 //
 // report 子命令从 stdin 读取 go test -json 输出，合并 staging 中的 Fragment，
 // 生成 Markdown 格式的批次测试报告。
@@ -29,6 +29,8 @@ func main() {
 	switch os.Args[1] {
 	case "report":
 		runReport(os.Args[2:])
+	case "load":
+		runLoad(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -61,31 +63,44 @@ func runReport(args []string) {
 		os.Exit(1)
 	}
 
-	// 加载同 runID 下各用例采集的 Fragment
-	fragments, err := report.LoadFragments(cfg, *runID)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "load report fragments: %v\n", err)
+	// 按 api / flow 分别加载 Fragment 并生成报告
+	wrote := false
+	for _, kind := range []report.Kind{report.KindAPI, report.KindFlow} {
+		fragments, err := report.LoadFragments(cfg, *runID, kind)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "load report fragments (%s): %v\n", kind, err)
+			os.Exit(1)
+		}
+		if len(fragments) == 0 {
+			continue
+		}
+
+		summary := report.Summary{
+			RunID:     *runID,
+			Kind:      kind,
+			Generated: now,
+			GoVersion: runtime.Version(),
+			Command:   *command,
+			Duration:  duration,
+			Events:    events,
+			Fragments: fragments,
+		}
+
+		path, latest, err := report.WriteBatchMarkdown(cfg, summary)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "write markdown report (%s): %v\n", kind, err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("report [%s]: %s\n", kind, path)
+		fmt.Printf("latest [%s]: %s\n", kind, latest)
+		wrote = true
+	}
+
+	if !wrote {
+		fmt.Fprintf(os.Stderr, "no report fragments found for run-id %s\n", *runID)
 		os.Exit(1)
 	}
-
-	summary := report.Summary{
-		RunID:     *runID,
-		Generated: now,
-		GoVersion: runtime.Version(),
-		Command:   *command,
-		Duration:  duration,
-		Events:    events,
-		Fragments: fragments,
-	}
-
-	path, latest, err := report.WriteBatchMarkdown(cfg, summary)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "write markdown report: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("report: %s\n", path)
-	fmt.Printf("latest: %s\n", latest)
 }
 
 // readLines 从 Reader 逐行读取，跳过空行；缓冲区上限 1MB 以容纳大段输出。
@@ -105,5 +120,6 @@ func readLines(r *os.File) []string {
 
 func printUsage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n")
-	fmt.Fprintf(os.Stderr, "  my-testgogogo report merge --run-id <id> [--command <cmd>]\n")
+	fmt.Fprintf(os.Stderr, "  my-testgogogo report --run-id <id> [--command <cmd>]\n")
+	fmt.Fprintf(os.Stderr, "  my-testgogogo load --scenario <name> [--duration 30s] [--rate 20]\n")
 }

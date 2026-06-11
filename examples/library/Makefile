@@ -31,9 +31,9 @@ run:
 	@./scripts/run.sh
 
 test-report:
-	@mkdir -p reports/staging
+	@mkdir -p reports/api/staging reports/flow/staging
 	@chmod +x ./scripts/run.sh
-	@MY_TESTGOGOGO_REPORT_RUN_ID=$(RUN_ID) ./scripts/run.sh -json 2>&1 | tee reports/staging/go-test-$(RUN_ID).json | go run ../../cmd/my-testgogogo report --run-id $(RUN_ID) --command "go test ./... -json -count=1"
+	@MY_TESTGOGOGO_REPORT_RUN_ID=$(RUN_ID) ./scripts/run.sh -json 2>&1 | tee reports/go-test-$(RUN_ID).json | go run ../../cmd/my-testgogogo report --run-id $(RUN_ID) --command "go test ./... -json -count=1"
 
 clean:
-	rm -rf .cache reports/staging reports/**/*.md
+	rm -rf .cache reports

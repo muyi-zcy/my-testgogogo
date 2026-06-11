@@ -25,6 +25,7 @@ type GoTestEvent struct {
 // Summary 是批次报告的汇总数据，包含 go test 事件与各用例 Fragment。
 type Summary struct {
 	RunID     string
+	Kind      Kind // 报告类型：api / flow
 	Generated time.Time
 	GoVersion string
 	Active    string // 运行环境
@@ -42,8 +43,11 @@ type Summary struct {
 
 // WriteSingleMarkdown 为单个 Fragment 生成独立的 Markdown 报告文件。
 func WriteSingleMarkdown(cfg *Config, fragment Fragment) (string, error) {
+	kind := ResolveKind(fragment.Kind, fragment.Package)
+
 	summary := Summary{
 		RunID:     fragment.RunID,
+		Kind:      kind,
 		Generated: time.Now(),
 		GoVersion: runtime.Version(),
 		Fragments: []Fragment{fragment},
@@ -54,12 +58,13 @@ func WriteSingleMarkdown(cfg *Config, fragment Fragment) (string, error) {
 		fragment.RunID = fragment.FinishedAt.Format("20060102-150405")
 	}
 	dateDir := fragment.FinishedAt.Format("2006-01-02")
-	dir := filepath.Join(cfg.OutputDir, dateDir)
+	dir := filepath.Join(cfg.OutputDir(kind), dateDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
 
-	fileName := fmt.Sprintf("test-report-%s-%s.md",
+	fileName := fmt.Sprintf("%s-%s-%s.md",
+		kind.ReportPrefix(),
 		fragment.FinishedAt.Format("20060102-150405"),
 		sanitizeFileName(fragment.TestName),
 	)
@@ -67,26 +72,29 @@ func WriteSingleMarkdown(cfg *Config, fragment Fragment) (string, error) {
 	return path, os.WriteFile(path, []byte(renderMarkdown(summary, true)), 0o644)
 }
 
-// WriteBatchMarkdown 生成批次 Markdown 报告，同时更新 reports/latest.md。
+// WriteBatchMarkdown 生成指定类型的批次 Markdown 报告，并更新 reports/<kind>/latest.md。
 func WriteBatchMarkdown(cfg *Config, summary Summary) (string, string, error) {
 	summary.applyEnv()
 	if summary.RunID == "" {
 		summary.RunID = NewRunID(summary.Generated)
 	}
+	if summary.Kind == "" {
+		summary.Kind = KindAPI
+	}
 
 	dateDir := summary.Generated.Format("2006-01-02")
-	dir := filepath.Join(cfg.OutputDir, dateDir)
+	dir := filepath.Join(cfg.OutputDir(summary.Kind), dateDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", "", err
 	}
 
-	fileName := ReportFileName(summary.RunID)
+	fileName := ReportFileName(summary.Kind, summary.RunID)
 	path := filepath.Join(dir, fileName)
 	if err := os.WriteFile(path, []byte(renderMarkdown(summary, false)), 0o644); err != nil {
 		return "", "", err
 	}
 
-	latest := filepath.Join(cfg.OutputDir, "latest.md")
+	latest := filepath.Join(cfg.OutputDir(summary.Kind), "latest.md")
 	if err := os.WriteFile(latest, []byte(renderMarkdown(summary, false)), 0o644); err != nil {
 		return path, "", err
 	}
@@ -113,8 +121,23 @@ func (s *Summary) applyEnv() {
 	s.computeStats()
 }
 
-// computeStats 从 go test 事件中统计顶层用例的通过/失败/跳过数量。
+// computeStats 从 Fragment 或 go test 事件统计用例数量。
 func (s *Summary) computeStats() {
+	if len(s.Fragments) > 0 {
+		s.Total = len(s.Fragments)
+		for _, f := range s.Fragments {
+			switch f.Status {
+			case "PASS":
+				s.Passed++
+			case "FAIL":
+				s.Failed++
+			case "SKIP":
+				s.Skipped++
+			}
+		}
+		return
+	}
+
 	topLevel := collectTopLevelResults(s.Events)
 	s.Total = len(topLevel)
 	for _, action := range topLevel {
@@ -150,7 +173,20 @@ func collectTopLevelResults(events []GoTestEvent) map[string]string {
 func renderMarkdown(s Summary, single bool) string {
 	var b strings.Builder
 
-	b.WriteString("# my-testgogogo 接口自动化测试报告\n\n")
+	title := KindAPI.Title()
+	if s.Kind != "" {
+		title = s.Kind.Title()
+	}
+	if single && len(s.Fragments) == 1 && s.Fragments[0].Title != "" {
+		b.WriteString("# ")
+		b.WriteString(s.Fragments[0].Title)
+		b.WriteString("\n\n")
+		b.WriteString(fmt.Sprintf("> 类型：%s · %s\n\n", s.Fragments[0].Kind, s.Fragments[0].Category))
+	} else {
+		b.WriteString("# my-testgogogo ")
+		b.WriteString(title)
+		b.WriteString("\n\n")
+	}
 	b.WriteString("| 项目 | 值 |\n|------|----|\n")
 	b.WriteString(fmt.Sprintf("| 生成时间 | %s |\n", s.Generated.Format("2006-01-02 15:04:05")))
 	b.WriteString(fmt.Sprintf("| 报告编号 | %s |\n", s.RunID))
@@ -191,7 +227,7 @@ func renderMarkdown(s Summary, single bool) string {
 		b.WriteString(fmt.Sprintf("| 跳过 | %d |\n\n", s.Skipped))
 	}
 
-	if !single {
+	if !single && s.Kind == "" {
 		b.WriteString(renderCategoryStats(s))
 	}
 	b.WriteString(renderAllCases(s))
@@ -211,7 +247,7 @@ func renderCategoryStats(s Summary) string {
 			pkg = key[:idx]
 		}
 		category := CategoryAPI
-		if strings.Contains(pkg, "/tests/flow/") {
+		if strings.Contains(pkg, "/flow/") || strings.Contains(pkg, "/tests/flow/") {
 			category = CategoryFlow
 		}
 		if stats[category] == nil {

@@ -13,6 +13,19 @@ description: >-
 
 ## 工作流
 
+### 新增压测场景
+
+```
+进度：
+- [ ] 1. 在 scenario/ 写 (ctx, *load.Env) error，内部调 apistep
+- [ ] 2. 在 scenario/register.go 注册
+- [ ] 3. 重构 api/ 或 flow/ 测试共用 scenario
+- [ ] 4. configs/config.yaml 增加 load.scenarios
+- [ ] 5. my-testgogogo load --scenario <name>
+```
+
+详见 [load.md](../my-testgogogo/load.md) 与 `docs/load-testing.md`。
+
 ### 新增单接口测试
 
 ```

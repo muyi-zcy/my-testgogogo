@@ -19,18 +19,18 @@ type rootConfig struct {
 
 // reportConfig YAML 中的报告配置段。
 type reportConfig struct {
-	Enabled    bool   `yaml:"enabled"`     // 是否全局启用报告
-	OutputDir  string `yaml:"output_dir"`  // Markdown 输出目录
-	StagingDir string `yaml:"staging_dir"` // Fragment JSON 暂存目录
+	Enabled    bool   `yaml:"enabled"`
+	BaseDir    string `yaml:"base_dir"`
+	OutputDir  string `yaml:"output_dir"`  // 兼容旧配置，等同 base_dir
+	StagingDir string `yaml:"staging_dir"` // 已废弃，忽略
 }
 
 // Config 报告模块的运行时配置（路径已解析为绝对路径）。
 type Config struct {
-	Enabled    bool
-	OutputDir  string
-	StagingDir string
-	RootPath   string
-	runID      string // 当前批次运行 ID，由环境变量注入
+	Enabled  bool
+	BaseDir  string // 报告根目录，各类型输出至 base_dir/{api,flow,load}/
+	RootPath string
+	runID    string
 }
 
 // LoadConfig 从项目 configs/config.yaml 加载报告配置。
@@ -51,27 +51,32 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
-	cfg := &Config{
-		Enabled:    rootCfg.Report.Enabled,
-		OutputDir:  rootCfg.Report.OutputDir,
-		StagingDir: rootCfg.Report.StagingDir,
-		RootPath:   root,
+	baseDir := rootCfg.Report.BaseDir
+	if baseDir == "" {
+		baseDir = rootCfg.Report.OutputDir
+	}
+	if baseDir == "" {
+		baseDir = "reports"
+	}
+	if !filepath.IsAbs(baseDir) {
+		baseDir = filepath.Join(root, baseDir)
 	}
 
-	if cfg.OutputDir == "" {
-		cfg.OutputDir = "reports"
-	}
-	if cfg.StagingDir == "" {
-		cfg.StagingDir = filepath.Join(cfg.OutputDir, "staging")
-	}
-	if !filepath.IsAbs(cfg.OutputDir) {
-		cfg.OutputDir = filepath.Join(root, cfg.OutputDir)
-	}
-	if !filepath.IsAbs(cfg.StagingDir) {
-		cfg.StagingDir = filepath.Join(root, cfg.StagingDir)
-	}
+	return &Config{
+		Enabled:  rootCfg.Report.Enabled,
+		BaseDir:  baseDir,
+		RootPath: root,
+	}, nil
+}
 
-	return cfg, nil
+// OutputDir 返回指定类型的 Markdown 输出根目录，如 reports/api。
+func (c *Config) OutputDir(kind Kind) string {
+	return filepath.Join(c.BaseDir, string(kind))
+}
+
+// StagingDir 返回指定类型的 Fragment 暂存目录，如 reports/api/staging。
+func (c *Config) StagingDir(kind Kind) string {
+	return filepath.Join(c.OutputDir(kind), "staging")
 }
 
 // NewRunID 根据时间生成批次运行 ID，格式 YYYYMMDD-HHMMSS。
@@ -80,8 +85,8 @@ func NewRunID(now time.Time) string {
 }
 
 // ReportFileName 生成批次报告的 Markdown 文件名。
-func ReportFileName(runID string) string {
-	return fmt.Sprintf("test-report-%s.md", runID)
+func ReportFileName(kind Kind, runID string) string {
+	return fmt.Sprintf("%s-report-%s.md", kind, runID)
 }
 
 // LoadEnvSummary 从应用配置中读取环境摘要信息，用于报告头部展示。

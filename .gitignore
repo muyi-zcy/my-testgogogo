@@ -6,7 +6,7 @@ bin/
 # Coverage & reports
 coverage.out
 *.html
-reports/staging/
+reports/**/staging/
 reports/**/*.md
 reports/**/*.json
 !reports/.gitkeep

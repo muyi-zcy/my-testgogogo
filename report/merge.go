@@ -11,9 +11,9 @@ import (
 	"time"
 )
 
-// LoadFragments 从 staging 目录加载指定 runID 下的所有 Fragment JSON 文件。
-func LoadFragments(cfg *Config, runID string) ([]Fragment, error) {
-	dir := filepath.Join(cfg.StagingDir, runID)
+// LoadFragments 从指定类型的 staging 目录加载 runID 下的 Fragment。
+func LoadFragments(cfg *Config, runID string, kind Kind) ([]Fragment, error) {
+	dir := filepath.Join(cfg.StagingDir(kind), runID)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -34,6 +34,9 @@ func LoadFragments(cfg *Config, runID string) ([]Fragment, error) {
 		var fragment Fragment
 		if err := json.Unmarshal(data, &fragment); err != nil {
 			return nil, fmt.Errorf("parse fragment %s: %w", entry.Name(), err)
+		}
+		if fragment.Kind == "" {
+			fragment.Kind = ResolveKind("", fragment.Package)
 		}
 		fragments = append(fragments, fragment)
 	}

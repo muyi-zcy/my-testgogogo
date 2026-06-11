@@ -30,7 +30,8 @@ type Fragment struct {
 	Package     string       `json:"package"`     // 测试包路径
 	TestName    string       `json:"test_name"`   // 测试函数名
 	Title       string       `json:"title"`       // 报告标题
-	Category    string       `json:"category"`    // 分类
+	Kind        Kind         `json:"kind"`        // 报告类型：api / flow
+	Category    string       `json:"category"`    // 分类展示名
 	Description string       `json:"description"` // 说明
 	Status      string       `json:"status"`      // PASS / FAIL / SKIP
 	Duration    string       `json:"duration"`    // 总耗时

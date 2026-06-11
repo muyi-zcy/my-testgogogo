@@ -278,6 +278,7 @@ func (c *Collector) buildFragment(cfg *Config) Fragment {
 		Package:     pkgPath,
 		TestName:    c.t.Name(),
 		Title:       titleOrDefault(c.meta, c.t.Name()),
+		Kind:        c.meta.kindOrDefault(pkgPath),
 		Category:    c.meta.categoryOrDefault(pkgPath),
 		Description: c.meta.Description,
 		Status:      status,
@@ -335,7 +336,7 @@ func titleOrDefault(meta Meta, testName string) string {
 	return testName
 }
 
-// saveFragment 将 Fragment 序列化为 JSON 写入 staging 目录。
+// saveFragment 将 Fragment 序列化为 JSON 写入对应类型的 staging 目录。
 func saveFragment(cfg *Config, fragment Fragment) error {
 	runID := fragment.RunID
 	if runID == "" {
@@ -343,7 +344,8 @@ func saveFragment(cfg *Config, fragment Fragment) error {
 		fragment.RunID = runID
 	}
 
-	dir := filepath.Join(cfg.StagingDir, runID)
+	kind := ResolveKind(fragment.Kind, fragment.Package)
+	dir := filepath.Join(cfg.StagingDir(kind), runID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}

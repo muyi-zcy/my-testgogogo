@@ -13,5 +13,4 @@ auth:
 
 report:
   enabled: true
-  output_dir: reports
-  staging_dir: reports/staging
+  base_dir: reports
