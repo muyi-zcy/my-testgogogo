@@ -116,7 +116,7 @@ cd examples/demo && make test-report
 # 输出：reports/<日期>/test-report-<run-id>-<用例名>.md
 ```
 
-Reporter API：`r.Step` / `r.Note` / `r.SetResult(map[string]any{...})`
+Reporter API：`r.Step` / `r.Note` / `r.SetResponse(resp)` / `r.SetResult(map[string]any{...})`
 
 ## 日常命令
 

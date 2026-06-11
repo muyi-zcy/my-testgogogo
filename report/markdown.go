@@ -425,6 +425,11 @@ func renderStepDetails(steps []StepRecord) string {
 			b.WriteString(renderStructuredResult(step.Result))
 			b.WriteString("\n")
 		}
+		if len(step.Response) > 0 {
+			b.WriteString("**接口响应：**\n\n")
+			b.WriteString(renderStructuredResult(step.Response))
+			b.WriteString("\n")
+		}
 	}
 	return b.String()
 }

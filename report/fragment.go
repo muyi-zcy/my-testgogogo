@@ -15,6 +15,7 @@ type StepRecord struct {
 	Detail     string         `json:"detail,omitempty"`      // 失败说明
 	Input      map[string]any `json:"input,omitempty"`       // 步骤入参
 	Result     map[string]any `json:"result,omitempty"`      // 结构化结果
+	Response   map[string]any `json:"response,omitempty"`    // 失败时的接口原始响应
 }
 
 // VarRecord 记录用例级关键变量（在报告汇总区展示）。

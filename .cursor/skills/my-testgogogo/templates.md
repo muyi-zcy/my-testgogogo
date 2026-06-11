@@ -118,6 +118,7 @@ func TestWidgetList(t *testing.T) {
     r.Step("list widgets", func(t *testing.T) {
         page, err := apistep.ListWidgets(ctx, c, apistep.ListParams{PageNum: 1, PageSize: 10})
         require.NoError(t, err)
+        r.SetResponse(page)
         assert.PageNotEmpty(t, page.Total, page.Records)
         r.SetResult(map[string]any{"total": page.Total, "count": len(page.Records)})
     })

@@ -15,16 +15,17 @@ import (
 
 // Collector 是 Reporter 的具体实现，在测试执行期间采集步骤、变量与结构化结果。
 type Collector struct {
-	meta          Meta
-	t             *testing.T
-	packagePath   string
-	startedAt     time.Time
-	steps         []StepRecord
-	vars          []VarRecord
-	logs          []string
-	finished      bool
-	currentInput  map[string]any // 当前步骤的入参缓冲区
-	currentResult map[string]any // 当前步骤的结构化结果缓冲区
+	meta            Meta
+	t               *testing.T
+	packagePath     string
+	startedAt       time.Time
+	steps           []StepRecord
+	vars            []VarRecord
+	logs            []string
+	finished        bool
+	currentInput    map[string]any // 当前步骤的入参缓冲区
+	currentResult   map[string]any // 当前步骤的结构化结果缓冲区
+	currentResponse map[string]any // 当前步骤的接口响应缓冲区（失败时写入报告）
 }
 
 // noopCollector 是未启用报告时的空实现，所有方法均为 no-op。
@@ -37,6 +38,7 @@ func (n *noopCollector) Record(string, any)            {}
 func (n *noopCollector) RecordInput(string, any)       {}
 func (n *noopCollector) SetInput(any)                  {}
 func (n *noopCollector) SetResult(any)                 {}
+func (n *noopCollector) SetResponse(any)               {}
 
 // Reporter 报告采集接口；未启用时返回 no-op 实现。
 type Reporter interface {
@@ -54,6 +56,8 @@ type Reporter interface {
 	SetInput(value any)
 	// SetResult 一次性设置当前步骤的结构化结果（map/struct）。
 	SetResult(value any)
+	// SetResponse 注册当前步骤的接口响应；步骤失败时会打印并写入报告。
+	SetResponse(value any)
 }
 
 // Enable 根据 Meta 配置启用报告采集。Generate=false 或全局禁用时返回 no-op。
@@ -88,20 +92,29 @@ func (c *Collector) Step(name string, fn func(t *testing.T)) {
 	stepStart := time.Now()
 	stepInput := make(map[string]any)
 	stepResult := make(map[string]any)
+	stepResponse := make(map[string]any)
 	passed := true
 	detail := ""
 
 	c.currentInput = stepInput
 	c.currentResult = stepResult
+	c.currentResponse = stepResponse
 	defer func() {
 		c.currentInput = nil
 		c.currentResult = nil
+		c.currentResponse = nil
 		stepEnd := time.Now()
 		elapsed := stepEnd.Sub(stepStart)
 
 		status := "PASS"
 		if !passed {
 			status = "FAIL"
+		}
+
+		var response map[string]any
+		if !passed && len(stepResponse) > 0 {
+			response = cloneMap(stepResponse)
+			c.t.Logf("report: step %q failed, API response:\n%s", name, formatResponseLog(response))
 		}
 
 		c.steps = append(c.steps, StepRecord{
@@ -115,6 +128,7 @@ func (c *Collector) Step(name string, fn func(t *testing.T)) {
 			Detail:     detail,
 			Input:      cloneMap(stepInput),
 			Result:     cloneMap(stepResult),
+			Response:   response,
 		})
 	}()
 
@@ -179,6 +193,21 @@ func (c *Collector) SetInput(value any) {
 	}
 	for key, val := range normalized {
 		c.currentInput[key] = val
+	}
+}
+
+// SetResponse 将接口响应合并到当前步骤的响应缓冲区；仅步骤失败时写入报告并打印。
+func (c *Collector) SetResponse(value any) {
+	if c.currentResponse == nil {
+		return
+	}
+	normalized, err := normalizeResult(value)
+	if err != nil {
+		c.currentResponse["_error"] = err.Error()
+		return
+	}
+	for key, val := range normalized {
+		c.currentResponse[key] = val
 	}
 }
 
@@ -348,6 +377,15 @@ func currentRunID(cfg *Config) string {
 func sanitizeFileName(name string) string {
 	replacer := strings.NewReplacer("/", "_", "\\", "_", ":", "_", "*", "_", "?", "_", "\"", "_", "<", "_", ">", "_", "|", "_", " ", "_")
 	return replacer.Replace(name)
+}
+
+// formatResponseLog 将接口响应格式化为便于日志输出的 JSON 字符串。
+func formatResponseLog(response map[string]any) string {
+	payload, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return fmt.Sprint(response)
+	}
+	return string(payload)
 }
 
 // formatDuration 将 Duration 格式化为人类可读的字符串。

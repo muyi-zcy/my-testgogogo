@@ -231,6 +231,7 @@ r := testkit.EnableReport(t, testkit.ReportMeta{
 
 r.Step("步骤名", func(t *testing.T) { /* ... */ })
 r.Note("备注信息")
+r.SetResponse(resp) // 断言前注册接口响应，失败时自动打印并写入报告
 r.SetResult(map[string]any{"key": "value"})
 ```
 
