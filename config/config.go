@@ -65,12 +65,14 @@ type UserConfig struct {
 
 // EnvConfig 对应 configs/<env>.yaml 的环境配置结构。
 type EnvConfig struct {
-	BaseURL        string         `yaml:"base_url"`
-	TimeoutSeconds int            `yaml:"timeout_seconds"`
-	User           UserConfig     `yaml:"user"`
-	Token          string         `yaml:"token"`        // static_token 模式使用
-	CaptchaCode    string         `yaml:"captcha_code"` // 验证码（如需要）
-	Vars           map[string]any `yaml:"vars"`         // 环境级全局变量，覆盖 test.vars 同名项
+	BaseURL        string            `yaml:"base_url"`
+	TimeoutSeconds int               `yaml:"timeout_seconds"`
+	Services       map[string]string `yaml:"services"`
+	Routes         RoutesYAML        `yaml:"routes"`
+	User           UserConfig        `yaml:"user"`
+	Token          string            `yaml:"token"`        // static_token 模式使用
+	CaptchaCode    string            `yaml:"captcha_code"` // 验证码（如需要）
+	Vars           map[string]any    `yaml:"vars"`         // 环境级全局变量，覆盖 test.vars 同名项
 }
 
 // Config 是合并后的运行时配置，供测试框架各模块使用。
@@ -78,6 +80,7 @@ type Config struct {
 	Active          string
 	BaseURL         string
 	Timeout         time.Duration
+	Router          *Router
 	User            UserConfig
 	Token           string
 	CaptchaCode     string
@@ -137,6 +140,12 @@ func Load() (*Config, error) {
 	if cfg.BaseURL == "" {
 		return nil, fmt.Errorf("base_url is required in configs/%s.yaml", active)
 	}
+
+	router, err := buildRouter(cfg.BaseURL, envCfg.Services, envCfg.Routes)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Router = router
 
 	// 推断默认 Provider：有 Token 用 static_token，否则用 login
 	provider := cfg.Auth.Provider
@@ -233,9 +242,24 @@ func loadEnvConfig(root, active string) (*EnvConfig, error) {
 	return &cfg, nil
 }
 
-// CacheKey 生成 Token 缓存的唯一键，由环境名、基地址和用户名组成。
+// CacheKey 生成 Token 缓存的唯一键，由环境名、基地址、路由指纹和用户名组成。
 func (c *Config) CacheKey() string {
+	if c.Router != nil {
+		if fp := c.Router.Fingerprint(); fp != "" {
+			return fmt.Sprintf("%s_%s_%s_%s", c.Active, c.BaseURL, fp, c.User.Username)
+		}
+	}
 	return fmt.Sprintf("%s_%s_%s", c.Active, c.BaseURL, c.User.Username)
+}
+
+// ResolveBaseURL 根据请求路径解析目标 base URL。
+func (c *Config) ResolveBaseURL(path string) string {
+	if c.Router != nil {
+		if base := c.Router.Resolve(path); base != "" {
+			return base
+		}
+	}
+	return c.BaseURL
 }
 
 // SkipIntegration 快捷方法：读取配置并返回是否跳过集成测试。

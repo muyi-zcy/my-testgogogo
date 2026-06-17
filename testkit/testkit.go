@@ -68,7 +68,7 @@ func MustVars[T any](t *testing.T, cfg *config.Config) T {
 // NewClient 根据配置创建未认证的 HTTP 客户端。
 func NewClient(t *testing.T, cfg *config.Config) *client.Client {
 	t.Helper()
-	return client.New(cfg.BaseURL, cfg.Timeout)
+	return client.NewWithRouter(cfg.BaseURL, cfg.Timeout, cfg.Router)
 }
 
 // NewAuthenticatedClient 创建已完成认证的 HTTP 客户端，可直接调用需登录的接口。

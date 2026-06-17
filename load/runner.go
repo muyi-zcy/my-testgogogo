@@ -39,7 +39,7 @@ func Run(ctx context.Context, input RunInput, newEnv func(*config.Config, *clien
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	httpClient := client.New(cfg.BaseURL, cfg.Timeout)
+	httpClient := client.NewWithRouter(cfg.BaseURL, cfg.Timeout, cfg.Router)
 	authCtx, authCancel := context.WithTimeout(ctx, 30*time.Second)
 	_, err = auth.Authenticate(authCtx, httpClient, cfg)
 	authCancel()
