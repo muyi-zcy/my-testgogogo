@@ -11,17 +11,21 @@ import (
 
 	"github.com/muyi-zcy/my-testgogogo/client"
 	"github.com/muyi-zcy/my-testgogogo/config"
-	"github.com/muyi-zcy/my-testgogogo/flow"
 	"github.com/muyi-zcy/my-testgogogo/load"
+	"github.com/muyi-zcy/my-testgogogo/runtime"
 )
 
-// NewEnv 从配置与客户端构造压测环境。
+// Env 是 scenario 编排层使用的运行时环境（功能测试与压测共用）。
+type Env = runtime.Env
+
+// NewEnv 从配置与已认证客户端构造压测环境。
 func NewEnv(cfg *config.Config, c *client.Client) *load.Env {
-	vars := flow.NewVars(map[string]any{"pageSize": 10})
-	if ps, err := cfg.VarInt("page_size"); err == nil {
-		vars.Set("pageSize", ps)
-	}
-	return &load.Env{Client: c, Vars: vars, Config: cfg}
+	return load.NewEnv(cfg, c)
+}
+
+// NewRuntimeEnv 从配置与客户端构造功能测试用运行时环境。
+func NewRuntimeEnv(cfg *config.Config, anon, auth *client.Client, ctx context.Context) *runtime.Env {
+	return runtime.New(cfg, anon, auth, ctx)
 }
 
 // Overrides CLI 可覆盖的压测参数；nil 表示使用 YAML 默认值。
@@ -34,7 +38,7 @@ type Overrides struct {
 }
 
 // RunScenario 运行单个压测场景并写报告。
-func RunScenario(ctx context.Context, registry map[string]load.ScenarioMeta, name string, overrides Overrides, runID, command string) error {
+func RunScenario(ctx context.Context, registry map[string]load.ScenarioMeta, name string, overrides Overrides, runID, command string, confirmed bool) error {
 	meta, ok := registry[name]
 	if !ok {
 		return fmt.Errorf("scenario %q not found in registry", name)
@@ -42,6 +46,9 @@ func RunScenario(ctx context.Context, registry map[string]load.ScenarioMeta, nam
 
 	loadCfg, err := load.LoadConfig()
 	if err != nil {
+		return err
+	}
+	if err := load.ValidateSafety(loadCfg, confirmed); err != nil {
 		return err
 	}
 
@@ -93,6 +100,7 @@ func Main(registry map[string]load.ScenarioMeta) int {
 	warmup := fs.Duration("warmup", 0, "warmup duration")
 	timeout := fs.Duration("timeout", 0, "per-scenario timeout")
 	runID := fs.String("run-id", "", "report run id")
+	confirm := fs.Bool("confirm", false, "confirm load test against current environment")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "parse flags: %v\n", err)
@@ -140,7 +148,7 @@ func Main(registry map[string]load.ScenarioMeta) int {
 			if i > 0 && rid != "" {
 				rid = *runID + "-" + name
 			}
-			if err := RunScenario(ctx, registry, name, overrides, rid, command); err != nil {
+			if err := RunScenario(ctx, registry, name, overrides, rid, command, *confirm); err != nil {
 				fmt.Fprintf(os.Stderr, "load %s: %v\n", name, err)
 				return 1
 			}
@@ -153,7 +161,7 @@ func Main(registry map[string]load.ScenarioMeta) int {
 		return 2
 	}
 
-	if err := RunScenario(ctx, registry, *scenario, overrides, *runID, command); err != nil {
+	if err := RunScenario(ctx, registry, *scenario, overrides, *runID, command, *confirm); err != nil {
 		fmt.Fprintf(os.Stderr, "load: %v\n", err)
 		return 1
 	}

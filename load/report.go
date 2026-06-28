@@ -131,6 +131,23 @@ func renderMarkdown(in ReportInput, active, baseURL, username string) string {
 	}
 	b.WriteString("\n")
 
+	if len(m.Steps) > 0 {
+		b.WriteString("## Flow 步骤延迟\n\n")
+		b.WriteString("| 步骤 | 次数 | 成功 | p50 | p95 | max |\n")
+		b.WriteString("|------|------|------|-----|-----|-----|\n")
+		for _, step := range m.Steps {
+			b.WriteString(fmt.Sprintf("| %s | %d | %d | %s | %s | %s |\n",
+				step.Name,
+				step.Total,
+				step.Success,
+				step.Latency.P50.Round(time.Millisecond),
+				step.Latency.P95.Round(time.Millisecond),
+				step.Latency.Max.Round(time.Millisecond),
+			))
+		}
+		b.WriteString("\n")
+	}
+
 	if len(m.Errors) > 0 {
 		b.WriteString("## 错误分布\n\n")
 		b.WriteString("| 类型 | 次数 |\n")

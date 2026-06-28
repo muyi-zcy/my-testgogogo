@@ -1,7 +1,8 @@
-.PHONY: backend test test-api test-flow test-report run clean help
+.PHONY: backend test test-api test-flow test-report load load-api run clean help
 
 BACKEND_PORT ?= 18081
 RUN_ID := $(shell date +%Y%m%d-%H%M%S)
+LOAD_CMD := go run ./cmd/load
 
 help:
 	@echo "library 示例（backend + 测试，内置 login 认证）"
@@ -12,6 +13,7 @@ help:
 	@echo "  make test-api     单接口测试"
 	@echo "  make test-flow    流程测试"
 	@echo "  make test-report  全部测试 + Markdown 报告"
+	@echo "  make load-api     压测图书列表"
 	@echo "  make clean        清理缓存与报告"
 
 backend:
@@ -34,6 +36,12 @@ test-report:
 	@mkdir -p reports/api/staging reports/flow/staging
 	@chmod +x ./scripts/run.sh
 	@MY_TESTGOGOGO_REPORT_RUN_ID=$(RUN_ID) ./scripts/run.sh -json 2>&1 | tee reports/go-test-$(RUN_ID).json | go run ../../cmd/my-testgogogo report --run-id $(RUN_ID) --command "go test ./... -json -count=1"
+
+load-api:
+	$(LOAD_CMD) --scenario book-list
+
+load:
+	$(LOAD_CMD) --all
 
 clean:
 	rm -rf .cache reports

@@ -114,6 +114,30 @@ func ListWidgets(ctx context.Context, c *client.Client, params ListParams) (*Pag
 }
 ```
 
+## scenario 单步模板
+
+```go
+package scenario
+
+import (
+    "context"
+
+    "github.com/muyi-zcy/my-testgogogo/examples/yourproject/apistep"
+    "github.com/muyi-zcy/my-testgogogo/runtime"
+)
+
+type ListWidgetsInput struct {
+    PageNum  int
+    PageSize int
+}
+
+func ListWidgets(ctx context.Context, env *runtime.Env, in ListWidgetsInput) (*apistep.PageResult, error) {
+    return apistep.ListWidgets(ctx, env.AuthClient, apistep.ListParams{
+        PageNum: in.PageNum, PageSize: in.PageSize,
+    })
+}
+```
+
 ## API 测试模板
 
 ```go
@@ -123,7 +147,7 @@ import (
     "testing"
 
     "github.com/muyi-zcy/my-testgogogo/assert"
-    "github.com/muyi-zcy/my-testgogogo/examples/yourproject/apistep"
+    "github.com/muyi-zcy/my-testgogogo/examples/yourproject/scenario"
     "github.com/muyi-zcy/my-testgogogo/testkit"
     "github.com/stretchr/testify/require"
 )
@@ -132,12 +156,12 @@ func TestWidgetList(t *testing.T) {
     testkit.SkipIfDisabled(t)
     r := testkit.EnableAPIReport(t, "组件列表查询", "GET /api/widgets 分页")
 
-    c := testkit.NewAuthenticatedClient(t)
-    ctx, cancel := testkit.TestContext(t)
-    defer cancel()
+    env := testkit.NewScenarioEnv(t)
 
     r.Step("list widgets", func(t *testing.T) {
-        page, err := apistep.ListWidgets(ctx, c, apistep.ListParams{PageNum: 1, PageSize: 10})
+        page, err := scenario.ListWidgets(env.CTX, env, scenario.ListWidgetsInput{
+            PageNum: 1, PageSize: 10,
+        })
         require.NoError(t, err)
         r.SetResponse(page)
         assert.PageNotEmpty(t, page.Total, page.Records)
@@ -154,10 +178,10 @@ package example
 import (
     "testing"
 
-    "github.com/muyi-zcy/my-testgogogo/examples/yourproject/apistep"
-    "github.com/muyi-zcy/my-testgogogo/flow"
+    "github.com/muyi-zcy/my-testgogogo/examples/yourproject/scenario"
     "github.com/muyi-zcy/my-testgogogo/report"
     "github.com/muyi-zcy/my-testgogogo/testkit"
+    "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
 )
 
@@ -171,28 +195,13 @@ func TestFlowWidgetQuery(t *testing.T) {
         Description: "系统信息 → 用户信息 → 列表查询",
     })
 
-    cfg := testkit.LoadConfig(t)
-    vars := flow.NewVars(flow.DefaultSeed())
-    c := testkit.NewClient(t, cfg)
-    ctx, cancel := testkit.TestContext(t)
-    defer cancel()
+    env := testkit.NewScenarioEnv(t)
 
-    r.Step("get system info", func(t *testing.T) {
-        info, err := apistep.GetSystemInfo(ctx, c)
+    r.Step("run widget query flow", func(t *testing.T) {
+        err := scenario.WidgetQueryFlow(env.CTX, env, scenario.WidgetQueryOptions{})
         require.NoError(t, err)
-        vars.Set("systemName", info["name"])
-        r.SetResult(map[string]any{"system": info})
-    })
-
-    authClient := testkit.NewAuthenticatedClient(t)
-
-    r.Step("list widgets", func(t *testing.T) {
-        page, err := apistep.ListWidgets(ctx, authClient, apistep.ListParams{
-            PageNum: 1, PageSize: vars.MustInt("pageSize"),
-        })
-        require.NoError(t, err)
-        vars.Set("total", int(page.Total))
-        r.SetResult(map[string]any{"total": page.Total})
+        assert.NotZero(t, env.Vars.MustInt("total"))
+        r.SetResult(map[string]any{"total": env.Vars.MustInt("total")})
     })
 }
 ```

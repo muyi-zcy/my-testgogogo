@@ -25,3 +25,23 @@ auth:
 report:
   enabled: true
   base_dir: reports
+
+load:
+  enabled: true
+  output_dir: reports/load
+  defaults:
+    duration: 10s
+    rate: 20
+    concurrency: 5
+    warmup: 2s
+    timeout: 15s
+  scenarios:
+    - name: book-list
+      type: api
+      enabled: true
+    - name: book-query-has-data
+      type: flow
+      enabled: false
+    - name: book-query-empty
+      type: flow
+      enabled: false

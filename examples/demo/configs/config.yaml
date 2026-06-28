@@ -14,3 +14,23 @@ auth:
 report:
   enabled: true
   base_dir: reports
+
+load:
+  enabled: true
+  output_dir: reports/load
+  defaults:
+    duration: 10s
+    rate: 20
+    concurrency: 5
+    warmup: 2s
+    timeout: 15s
+  scenarios:
+    - name: item-list
+      type: api
+      enabled: true
+    - name: item-query-has-data
+      type: flow
+      enabled: false
+    - name: item-query-empty
+      type: flow
+      enabled: false

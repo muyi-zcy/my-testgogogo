@@ -56,10 +56,11 @@ your-project/
 │   ├── config.yaml
 │   ├── local.yaml
 │   └── local.override.yaml   # 敏感信息，不入库
-├── apistep/                  # API 封装，api / flow / scenario 共用
-├── scenario/                 # 压测与功能测试共用的纯函数编排（可选）
-├── api/                      # 单接口测试
-├── flow/                     # 流程测试（可选）
+├── apistep/                  # HTTP 封装 + DTO
+├── scenario/                 # 业务编排（api / flow / 压测共用）
+├── api/                      # 单接口测试（scenario + 断言 + 报告）
+├── flow/                     # 流程测试（scenario + 分支断言 + 报告）
+├── cmd/load/                 # 压测入口
 ├── configs/testdata/flow.yaml  # Flow 种子数据（可选）
 └── go.mod
 ```
@@ -74,9 +75,8 @@ your-project/
 
 **规则**：
 
-- HTTP 调用放 `apistep/`，测试文件只做编排与断言
-- 已登录接口用 `testkit.NewAuthenticatedClient(t)`
-- 无需登录接口用 `testkit.NewClient(t, cfg)` + `client.WithoutAuth()`
+- HTTP 调用放 `apistep/`，业务编排放 `scenario/`，测试文件只做断言与报告
+- 使用 `testkit.NewScenarioEnv(t)` 获取运行时环境（含匿名 + 已认证客户端）
 - 需要报告时调用 `testkit.EnableAPIReport(t, title, desc)`
 
 模板见 [templates.md](templates.md#api-测试模板)。
@@ -87,10 +87,9 @@ your-project/
 
 **规则**：
 
-- `flow.NewVars(flow.DefaultSeed())` 初始化跨步骤变量
-- 每步用 `r.Step(name, fn)` 包装（对应报告一行）
-- `vars.Set` / `vars.MustString` / `vars.MustInt` 传递数据
-- 用 `switch vars.Get("branch")` 实现条件分支
+- 多步编排放 `scenario/` 的 Flow 函数（如 `ItemQueryFlow`）
+- Flow 内用 `env.RunStep("step-name", fn)` 包装各步（压测可采集 per-step 延迟）
+- 测试文件调用 scenario，根据 `env.Vars.Get("branch")` 做分支断言
 - 报告分类用 `report.CategoryFlow`
 
 模板见 [templates.md](templates.md#flow-测试模板)。
@@ -151,9 +150,10 @@ Reporter API：`r.Step` / `r.Note` / `r.SetResponse(resp)` / `r.SetResult(map[st
 
 1. 修改 `backend/` 实现 mock 接口
 2. 更新 `configs/local.yaml` 的 `base_url` 与端口
-3. 编写 `apistep/`、`api/`、`flow/`
+3. 编写 `apistep/`、`scenario/`、`api/`、`flow/`
 4. 选择 `login` 或自定义 Provider
-5. 在根 `Makefile` 添加对应 target（可选）
+5. 添加 `cmd/load/` 与 `scenario/register.go`（压测）
+6. 在根 `Makefile` 添加对应 target（可选）
 
 ## 常见错误
 

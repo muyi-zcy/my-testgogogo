@@ -141,6 +141,17 @@ func (c *Client) Token() string {
 	return c.authToken
 }
 
+// Clone 复制客户端（共享 Token 与路由，独立 HTTP 连接池），供压测 worker 使用。
+func (c *Client) Clone() *Client {
+	if c == nil {
+		return nil
+	}
+	nc := NewWithRouter(c.baseURL, c.httpClient.Timeout, c.router)
+	nc.authHeader = c.authHeader
+	nc.authToken = c.authToken
+	return nc
+}
+
 // SetAuthHeader 自定义认证头名称（如 X-Api-Key）。
 func (c *Client) SetAuthHeader(name string) {
 	if name != "" {

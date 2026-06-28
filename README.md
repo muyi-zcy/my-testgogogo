@@ -51,25 +51,29 @@ my-testgogogo/
 ├── config/            多环境 YAML 配置加载
 ├── assert/            常用断言（HTTP 状态码、JSON 路径、分页）
 ├── report/            报告采集、Fragment 暂存、Markdown 生成
-├── flow/              Flow 编排（Step 子测试、Vars 变量）
+├── flow/              跨步骤变量（Vars）
+├── runtime/           功能测试与压测共用的运行时 Env
 ├── testkit/           测试便捷入口（配置、客户端、认证、报告）
 ├── load/              压测 Runner、指标、报告
 ├── loadkit/           压测便捷入口
 ├── cmd/my-testgogogo/ CLI 工具（report / load 子命令）
 └── examples/
     ├── demo/          商品商城：自定义 demoauth 认证
-    └── library/       图书管理：内置 login 认证
+    ├── library/       图书管理：内置 login 认证
+    └── wms/           真实 WMS 对接 + 压测
 ```
 
 ### 模块职责
 
 | 包 | 职责 |
 |----|------|
-| `testkit` | 测试入口：`SkipIfDisabled`、`NewAuthenticatedClient`、`EnableReport` |
+| `testkit` | 测试入口：`SkipIfDisabled`、`NewScenarioEnv`、`EnableReport` |
+| `runtime` | 统一运行时 Env（Client、AuthClient、Vars、Context） |
 | `client` | HTTP 请求封装，自动拼接 baseURL、注入 Authorization |
 | `auth` | Provider 插件模式，负责登录与 Token 缓存校验 |
 | `config` | 读取 `configs/config.yaml` + `configs/<env>.yaml` 并合并 |
-| `apistep`（示例内） | 业务 API 封装，供 `api/` 与 `flow/` 复用 |
+| `apistep`（项目内） | HTTP 封装 + DTO |
+| `scenario`（项目内） | 业务编排，api / flow / 压测共用 |
 | `report` | 用例级步骤采集，配合 CLI 合并为批次 Markdown 报告 |
 
 ## 两个示例对比
@@ -88,19 +92,19 @@ my-testgogogo/
 
 ### 单接口测试（API）
 
-每个测试函数验证一个接口的行为。推荐将 HTTP 调用封装在 `apistep/`，测试文件只负责编排与断言。
+每个测试函数验证一个接口的行为。HTTP 调用封装在 `apistep/`，业务编排在 `scenario/`，测试文件只做断言与报告。
 
 ```go
 func TestBookList(t *testing.T) {
     testkit.SkipIfDisabled(t)
     r := testkit.EnableAPIReport(t, "图书列表查询", "GET /api/books 分页查询")
 
-    c := testkit.NewAuthenticatedClient(t)
-    ctx, cancel := testkit.TestContext(t)
-    defer cancel()
+    env := testkit.NewScenarioEnv(t)
 
     r.Step("list books", func(t *testing.T) {
-        page, err := apistep.ListBooks(ctx, c, apistep.ListParams{PageNum: 1, PageSize: 10})
+        page, err := scenario.ListBooks(env.CTX, env, scenario.ListBooksInput{
+            PageNum: 1, PageSize: 10,
+        })
         require.NoError(t, err)
         assert.PageNotEmpty(t, page.Total, page.Records)
         r.SetResult(map[string]any{"total": page.Total, "count": len(page.Records)})
@@ -110,14 +114,14 @@ func TestBookList(t *testing.T) {
 
 ### 流程测试（Flow）
 
-多个步骤按业务顺序执行，前序步骤通过 `flow.Vars` 向后序传递数据，支持 `switch` 条件分支。
+多个步骤按业务顺序执行，编排逻辑在 `scenario/` 的多步 Flow 函数中，测试文件负责断言与报告。
 
 典型模式：
 
-1. `flow.NewVars(flow.DefaultSeed())` 初始化变量
-2. `r.Step(...)` 包装每个步骤（对应报告中的一行）
-3. `vars.Set("key", value)` 写入，`vars.MustString("key")` 读取
-4. 根据 `vars.Get("branch")` 走不同分支
+1. `testkit.NewScenarioEnv(t)` 获取运行时环境
+2. 调用 `scenario.XxxFlow(ctx, env, opts)` 执行完整流程
+3. 根据 `env.Vars.Get("branch")` 做分支断言
+4. `r.Step(...)` 包装报告步骤
 
 完整示例见 `examples/demo/flow/example/item_query_test.go`。
 
@@ -128,12 +132,14 @@ func TestBookList(t *testing.T) {
 ```
 your-project/
 ├── configs/
-│   ├── config.yaml           # active 环境、auth、report
+│   ├── config.yaml           # active 环境、auth、report、load
 │   ├── local.yaml            # base_url、账号
 │   └── local.override.yaml   # 敏感配置（.gitignore）
-├── apistep/                  # API 封装（可被 api/ 与 flow/ 复用）
-├── api/                      # 单接口测试
-├── flow/                     # 流程测试
+├── apistep/                  # HTTP 封装 + DTO
+├── scenario/                 # 业务编排（api / flow / 压测共用）
+├── api/                      # 单接口测试（scenario + 断言 + 报告）
+├── flow/                     # 流程测试（scenario + 分支断言 + 报告）
+├── cmd/load/                 # 压测入口
 ├── internal/myauth/          # 自定义 Provider（可选）
 └── go.mod                    # require github.com/muyi-zcy/my-testgogogo
 ```
@@ -331,8 +337,8 @@ go get github.com/muyi-zcy/my-testgogogo
 ```
 
 2. 创建 `configs/` 目录，按上文配置 `base_url` 与认证方式
-3. 编写 `apistep/` 封装 API，`api/` 编写单接口测试
-4. 需要多步骤流程时，在 `flow/` 中使用 `flow.Vars` 与 `r.Step`
+3. 编写 `apistep/` 封装 HTTP，`scenario/` 封装业务编排，`api/` 编写单接口测试
+4. 需要多步骤流程时，在 `scenario/` 写 Flow 函数，`flow/` 中调用并断言
 5. 复杂认证场景参考 [demo 自定义 Provider](examples/demo/internal/demoauth/provider.go)
 
 ## 文档

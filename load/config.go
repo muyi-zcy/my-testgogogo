@@ -12,13 +12,15 @@ import (
 
 // Config 压测模块运行时配置（路径已解析为绝对路径）。
 type Config struct {
-	Enabled    bool
-	OutputDir  string
-	StagingDir string
-	Defaults   Options
-	Report     ReportOptions
-	Scenarios  []ScenarioConfig
-	RootPath   string
+	Enabled        bool
+	OutputDir      string
+	StagingDir     string
+	RequireConfirm bool
+	AllowedActive  []string
+	Defaults       Options
+	Report         ReportOptions
+	Scenarios      []ScenarioConfig
+	RootPath       string
 }
 
 // ScenarioConfig YAML 中单个场景配置。
@@ -54,12 +56,14 @@ type rootConfig struct {
 }
 
 type loadYAML struct {
-	Enabled    bool             `yaml:"enabled"`
-	OutputDir  string           `yaml:"output_dir"`
-	StagingDir string           `yaml:"staging_dir"`
-	Defaults   defaultsYAML     `yaml:"defaults"`
-	Report     reportYAML       `yaml:"report"`
-	Scenarios  []ScenarioConfig `yaml:"scenarios"`
+	Enabled        bool             `yaml:"enabled"`
+	OutputDir      string           `yaml:"output_dir"`
+	StagingDir     string           `yaml:"staging_dir"`
+	RequireConfirm bool             `yaml:"require_confirm"`
+	AllowedActive  []string         `yaml:"allowed_active"`
+	Defaults       defaultsYAML     `yaml:"defaults"`
+	Report         reportYAML       `yaml:"report"`
+	Scenarios      []ScenarioConfig `yaml:"scenarios"`
 }
 
 type reportYAML struct {
@@ -94,10 +98,12 @@ func LoadConfig() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Enabled:    rootCfg.Load.Enabled,
-		OutputDir:  rootCfg.Load.OutputDir,
-		StagingDir: rootCfg.Load.StagingDir,
-		RootPath:   root,
+		Enabled:        rootCfg.Load.Enabled,
+		OutputDir:      rootCfg.Load.OutputDir,
+		StagingDir:     rootCfg.Load.StagingDir,
+		RequireConfirm: rootCfg.Load.RequireConfirm,
+		AllowedActive:  append([]string(nil), rootCfg.Load.AllowedActive...),
+		RootPath:       root,
 	}
 
 	if cfg.OutputDir == "" {

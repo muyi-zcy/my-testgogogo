@@ -26,6 +26,40 @@ func TestMetricsTimeSeries(t *testing.T) {
 	}
 }
 
+func TestMetricsRecordStep(t *testing.T) {
+	m := NewMetrics(time.Second)
+	m.RecordStep("list", 10*time.Millisecond, nil)
+	m.RecordStep("list", 20*time.Millisecond, nil)
+	m.RecordStep("queryById", 5*time.Millisecond, errTest("fail"))
+	m.MarkEnded()
+
+	s := m.Snapshot()
+	if len(s.Steps) != 2 {
+		t.Fatalf("steps=%d want 2", len(s.Steps))
+	}
+	if s.Steps[0].Name != "list" || s.Steps[0].Success != 2 {
+		t.Fatalf("list step=%+v", s.Steps[0])
+	}
+	if s.Steps[1].Name != "queryById" || s.Steps[1].Failed != 1 {
+		t.Fatalf("query step=%+v", s.Steps[1])
+	}
+}
+
+func TestRenderStepSection(t *testing.T) {
+	out := renderMarkdown(ReportInput{
+		Meta:    ScenarioMeta{Name: "test", Type: TypeFlow, Title: "Test"},
+		Options: Options{Duration: time.Second, Rate: 10, Concurrency: 1, Warmup: 0, Timeout: time.Second},
+		Metrics: Snapshot{
+			Steps: []StepSummary{
+				{Name: "list", Total: 10, Success: 10, Latency: LatencySummary{P50: 5 * time.Millisecond, P95: 8 * time.Millisecond, Max: 10 * time.Millisecond}},
+			},
+		},
+	}, "local", "http://localhost", "user")
+	if !strings.Contains(out, "## Flow 步骤延迟") {
+		t.Fatal("missing step section")
+	}
+}
+
 func TestMetricsSnapshot(t *testing.T) {
 	m := NewMetrics(time.Second)
 	m.MarkStarted()

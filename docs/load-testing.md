@@ -44,19 +44,24 @@ load/report → Markdown 压测报告
 |-----------|------|
 | `load/` | Runner、速率控制、指标、Markdown 报告生成 |
 | `loadkit/` | 对外 API（类似 `testkit`） |
-| `scenario/`（示例内） | 纯函数编排，签名 `(ctx, *load.Env) error` |
+| `scenario/`（项目内） | 纯函数编排，签名 `(ctx, *runtime.Env, ...) (result, error)` |
+| `runtime` | 统一运行时 Env（Client、AuthClient、Vars、Context） |
 | `apistep/` | HTTP 调用（功能测试与压测共用） |
 | `api/`、`flow/` | 调用 scenario + 断言 + 功能报告 |
 
 ## 核心抽象
 
 ```go
-// load.Env 压测运行时环境
+// runtime.Env 功能测试与压测共用的运行时环境
 type Env struct {
-    Client *client.Client
-    Vars   *flow.Vars
-    Config *config.Config
+    CTX        context.Context
+    Config     *config.Config
+    Client     *client.Client      // 匿名
+    AuthClient *client.Client      // 已认证
+    Vars       *flow.Vars
 }
+
+// load.Env 嵌入 runtime.Env，额外支持压测指标 env.Record()
 
 // Scenario 可被功能测试与压测共用
 type Scenario func(ctx context.Context, env *Env) error
@@ -94,6 +99,9 @@ your-project/
 ```yaml
 load:
   enabled: true
+  require_confirm: false   # true 时必须 CLI 传 --confirm
+  allowed_active:          # 非空时仅允许 listed active 环境压测
+    - local
   output_dir: reports/load
   defaults:
     duration: 30s       # 压测时长
@@ -258,16 +266,16 @@ make load-flow
 | P0 | `load/` + `loadkit/` + Runner + 指标 | ✅ |
 | P1 | CLI `load` 子命令 + YAML 配置 | ✅ |
 | P2 | Markdown 压测报告 | ✅ |
-| P3 | WMS：`scenario/received.go`，重构 api 测试 | ✅ |
-| P4 | Flow scenario + per-step 指标 | 待做 |
-| P5 | 示例文档同步 | 待做 |
+| P3 | demo/library：`scenario/` + 重构 api/flow | ✅ |
+| P4 | Flow scenario + per-step 指标 | ✅ |
+| P5 | 示例文档同步 | ✅ |
 
 ## 安全与约束
 
 1. **写接口**：默认不启用；启用时需数据隔离或专用测试账号
-2. **目标环境**：建议 `load.active` 或 `load.require_confirm` 防止误打生产
+2. **目标环境**：`load.allowed_active` 限制可压测的 `active` 环境；`load.require_confirm: true` 时需 CLI `--confirm`
 3. **Flow 有状态步骤**：每轮 scenario 独立取 ID，避免脏数据
-4. **Token 过期**：Runner 在 cache TTL 内定期刷新认证
+4. **Token 过期**：每个压测 worker 执行前重新 `Authenticate`
 
 ## 与功能测试的关系
 

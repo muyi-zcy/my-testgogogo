@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/muyi-zcy/my-testgogogo/assert"
-	"github.com/muyi-zcy/my-testgogogo/examples/demo/apistep"
+	"github.com/muyi-zcy/my-testgogogo/examples/demo/scenario"
 	"github.com/muyi-zcy/my-testgogogo/testkit"
 	"github.com/stretchr/testify/require"
 )
@@ -15,17 +15,15 @@ func TestItemList(t *testing.T) {
 	testkit.SkipIfDisabled(t)
 	r := testkit.EnableAPIReport(t, "商品列表查询", "GET /api/items 分页查询")
 
-	c := testkit.NewAuthenticatedClient(t)
-	ctx, cancel := testkit.TestContext(t)
-	defer cancel()
+	env := testkit.NewScenarioEnv(t)
 
 	r.Step("list items", func(t *testing.T) {
-		params := apistep.ListParams{
+		params := scenario.ListItemsInput{
 			PageNum:  1,
 			PageSize: 10,
 		}
 		r.SetInput(params)
-		page, err := apistep.ListItems(ctx, c, params)
+		page, err := scenario.ListItems(env.CTX, env, params)
 		require.NoError(t, err)
 		assert.PageNotEmpty(t, page.Total, page.Records)
 

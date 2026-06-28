@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/muyi-zcy/my-testgogogo/assert"
-	"github.com/muyi-zcy/my-testgogogo/examples/library/apistep"
+	"github.com/muyi-zcy/my-testgogogo/examples/library/scenario"
 	"github.com/muyi-zcy/my-testgogogo/testkit"
 	"github.com/stretchr/testify/require"
 )
@@ -15,12 +15,10 @@ func TestBookList(t *testing.T) {
 	testkit.SkipIfDisabled(t)
 	r := testkit.EnableAPIReport(t, "图书列表查询", "GET /api/books 分页查询")
 
-	c := testkit.NewAuthenticatedClient(t)
-	ctx, cancel := testkit.TestContext(t)
-	defer cancel()
+	env := testkit.NewScenarioEnv(t)
 
 	r.Step("list books", func(t *testing.T) {
-		page, err := apistep.ListBooks(ctx, c, apistep.ListParams{
+		page, err := scenario.ListBooks(env.CTX, env, scenario.ListBooksInput{
 			PageNum:  1,
 			PageSize: 10,
 		})

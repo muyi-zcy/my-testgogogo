@@ -9,7 +9,6 @@ import (
 	"github.com/muyi-zcy/my-testgogogo/auth"
 	"github.com/muyi-zcy/my-testgogogo/client"
 	"github.com/muyi-zcy/my-testgogogo/config"
-	"github.com/muyi-zcy/my-testgogogo/flow"
 )
 
 // RunInput 单次压测运行输入。
@@ -39,18 +38,9 @@ func Run(ctx context.Context, input RunInput, newEnv func(*config.Config, *clien
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	httpClient := client.NewWithRouter(cfg.BaseURL, cfg.Timeout, cfg.Router)
-	authCtx, authCancel := context.WithTimeout(ctx, 30*time.Second)
-	_, err = auth.Authenticate(authCtx, httpClient, cfg)
-	authCancel()
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: %w", err)
-	}
-
-	env := newEnv(cfg, httpClient)
+	baseClient := client.NewWithRouter(cfg.BaseURL, cfg.Timeout, cfg.Router)
 	opts := input.Options
 	metrics := NewMetrics(opts.BucketInterval)
-	env.BindMetrics(metrics)
 
 	interval := time.Second / time.Duration(opts.Rate)
 	ticker := time.NewTicker(interval)
@@ -83,8 +73,23 @@ loop:
 				scenarioCtx, cancel := context.WithTimeout(ctx, opts.Timeout)
 				defer cancel()
 
+				workerClient := baseClient.Clone()
+				workerEnv := newEnv(cfg, workerClient)
+				workerEnv.BindMetrics(metrics)
+
+				authCtx, authCancel := context.WithTimeout(scenarioCtx, 15*time.Second)
+				_, authErr := auth.Authenticate(authCtx, workerClient, cfg)
+				authCancel()
+				if authErr != nil {
+					if !warming {
+						metrics.MarkStarted()
+						metrics.Record(0, authErr)
+					}
+					return
+				}
+
 				start := time.Now()
-				err := input.Meta.Fn(scenarioCtx, env)
+				err := input.Meta.Fn(scenarioCtx, workerEnv)
 				if !warming {
 					metrics.MarkStarted()
 					metrics.Record(time.Since(start), err)
@@ -105,9 +110,5 @@ loop:
 }
 
 func defaultNewEnv(cfg *config.Config, c *client.Client) *Env {
-	vars := flow.NewVars(map[string]any{"pageSize": 10})
-	if ps, err := cfg.VarInt("page_size"); err == nil {
-		vars.Set("pageSize", ps)
-	}
-	return &Env{Client: c, Vars: vars, Config: cfg}
+	return NewEnv(cfg, c)
 }

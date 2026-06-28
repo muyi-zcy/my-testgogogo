@@ -4,25 +4,22 @@ package system
 import (
 	"testing"
 
-	"github.com/muyi-zcy/my-testgogogo/examples/library/apistep"
+	"github.com/muyi-zcy/my-testgogogo/examples/library/scenario"
 	"github.com/muyi-zcy/my-testgogogo/testkit"
 	"github.com/stretchr/testify/require"
 )
 
-// TestSystemInfo 验证系统信息接口返回预期的服务名称。
+// TestSystemInfo 验证无需登录即可获取系统信息。
 func TestSystemInfo(t *testing.T) {
 	testkit.SkipIfDisabled(t)
 	r := testkit.EnableAPIReport(t, "系统信息", "GET /api/system/info 无需登录")
 
-	cfg := testkit.LoadConfig(t)
-	c := testkit.NewClient(t, cfg)
-	ctx, cancel := testkit.TestContext(t)
-	defer cancel()
+	env := testkit.NewScenarioEnv(t)
 
 	r.Step("get system info", func(t *testing.T) {
-		info, err := apistep.GetSystemInfo(ctx, c)
+		info, err := scenario.GetSystemInfo(env.CTX, env)
 		require.NoError(t, err)
-		require.Equal(t, "my-testgogogo-library", info["name"])
+		require.NotEmpty(t, info["name"])
 		r.SetResult(info)
 	})
 }

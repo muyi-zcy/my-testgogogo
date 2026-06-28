@@ -20,6 +20,7 @@ import (
 	"github.com/muyi-zcy/my-testgogogo/client"
 	"github.com/muyi-zcy/my-testgogogo/config"
 	"github.com/muyi-zcy/my-testgogogo/report"
+	"github.com/muyi-zcy/my-testgogogo/runtime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -107,6 +108,17 @@ type ReportMeta = report.Meta
 func EnableReport(t *testing.T, meta ReportMeta) report.Reporter {
 	t.Helper()
 	return report.Enable(t, meta)
+}
+
+// NewScenarioEnv 构造 scenario 编排层运行时环境（匿名 + 已认证客户端、Vars、Context）。
+func NewScenarioEnv(t *testing.T) *runtime.Env {
+	t.Helper()
+	SkipIfDisabled(t)
+	cfg := LoadConfig(t)
+	ctx, _ := TestContext(t)
+	anon := NewClient(t, cfg)
+	auth := NewAuthenticatedClient(t)
+	return runtime.New(cfg, anon, auth, ctx)
 }
 
 // EnableAPIReport 快捷启用单接口测试报告，分类默认为 CategoryAPI。

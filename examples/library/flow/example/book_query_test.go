@@ -4,7 +4,7 @@ package example
 import (
 	"testing"
 
-	"github.com/muyi-zcy/my-testgogogo/examples/library/apistep"
+	"github.com/muyi-zcy/my-testgogogo/examples/library/scenario"
 	"github.com/muyi-zcy/my-testgogogo/flow"
 	"github.com/muyi-zcy/my-testgogogo/report"
 	"github.com/muyi-zcy/my-testgogogo/testkit"
@@ -12,18 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const nonexistentISBN = "__NONEXISTENT__"
-
 // TestFlowBookQueryChain 图书查询流程：系统信息 → 管理员信息 → 图书列表 → 条件分支。
-// 通过 t.Run 分别演示「有数据」与「空列表」两条互斥分支。
 func TestFlowBookQueryChain(t *testing.T) {
 	testkit.SkipIfDisabled(t)
 
 	cases := []struct {
-		name            string
-		simulateEmpty   bool
-		reportTitle     string
-		reportDesc      string
+		name          string
+		simulateEmpty bool
+		reportTitle   string
+		reportDesc    string
 	}{
 		{
 			name:          "has_data",
@@ -56,119 +53,36 @@ func runBookQueryFlow(t *testing.T, simulateEmptyList bool, title, description s
 		Description: description,
 	})
 
-	cfg := testkit.LoadConfig(t)
-	vars := flow.NewVars(flow.DefaultSeed())
+	env := testkit.NewScenarioEnv(t)
+	env.Vars = flow.NewVars(flow.DefaultSeed())
 
-	c := testkit.NewClient(t, cfg)
-	ctx, cancel := testkit.TestContext(t)
-	defer cancel()
-
-	r.Step("get system info", func(t *testing.T) {
-		info, err := apistep.GetSystemInfo(ctx, c)
-		require.NoError(t, err)
-		require.NotEmpty(t, info["name"])
-		vars.Set("systemName", info["name"])
-		r.SetResult(map[string]any{"system": info})
-	})
-
-	authClient := testkit.NewAuthenticatedClient(t)
-
-	r.Step("get librarian info", func(t *testing.T) {
-		userInfo, err := apistep.GetMe(ctx, authClient)
-		require.NoError(t, err)
-		require.NotEmpty(t, userInfo.User.Username)
-
-		vars.Set("username", userInfo.User.Username)
-		vars.Set("roleCount", len(userInfo.Roles))
-		r.SetResult(map[string]any{
-			"username":    userInfo.User.Username,
-			"nickName":    userInfo.User.NickName,
-			"roleCount":   len(userInfo.Roles),
-			"permissions": len(userInfo.Permissions),
+	r.Step("run book query flow", func(t *testing.T) {
+		err := scenario.BookQueryFlow(env.CTX, env, scenario.BookQueryOptions{
+			SimulateEmpty: simulateEmptyList,
 		})
-	})
-
-	r.Step("list books", func(t *testing.T) {
-		params := apistep.ListParams{
-			PageNum:  1,
-			PageSize: vars.MustInt("pageSize"),
-		}
-		if simulateEmptyList {
-			params.ISBN = nonexistentISBN
-		}
-
-		page, err := apistep.ListBooks(ctx, authClient, params)
 		require.NoError(t, err)
 
-		vars.Set("bookCount", int(page.Total))
-		result := map[string]any{
-			"total":   page.Total,
-			"current": page.Current,
-			"size":    page.Size,
-		}
-		if len(page.Records) == 0 {
-			vars.Set("branch", "empty")
-			r.Note("图书列表为空，走空列表分支")
-			r.SetResult(result)
-			return
-		}
-
-		first := page.Records[0]
-		vars.Set("branch", "has_data")
-		vars.Set("firstISBN", first.ISBN)
-		vars.Set("firstTitle", first.Title)
-		result["firstBook"] = map[string]any{
-			"isbn":   first.ISBN,
-			"title":  first.Title,
-			"author": first.Author,
-		}
-		r.SetResult(result)
-	})
-
-	switch vars.Get("branch") {
-	case "has_data":
-		r.Note("走有数据分支：按 ISBN 精确过滤")
-		r.Step("query book by isbn from vars", func(t *testing.T) {
-			isbn := vars.MustString("firstISBN")
-
-			page, err := apistep.ListBooks(ctx, authClient, apistep.ListParams{
-				PageNum:  1,
-				PageSize: vars.MustInt("pageSize"),
-				ISBN:     isbn,
-			})
-			require.NoError(t, err)
-			require.NotEmpty(t, page.Records)
-			assert.Equal(t, isbn, page.Records[0].ISBN)
-			vars.Set("filteredCount", int(page.Total))
+		switch env.Vars.Get("branch") {
+		case "has_data":
+			assert.NotZero(t, env.Vars.MustInt("bookCount"))
+			assert.NotEmpty(t, env.Vars.MustString("firstISBN"))
 			r.SetResult(map[string]any{
-				"queryISBN": isbn,
-				"matched":   page.Records[0],
-				"total":     page.Total,
+				"branch":    "has_data",
+				"bookCount": env.Vars.MustInt("bookCount"),
+				"firstISBN": env.Vars.MustString("firstISBN"),
 			})
-		})
-
-	case "empty":
-		r.Note("走空列表分支：验证空结果分页结构")
-		r.Step("verify empty list pagination", func(t *testing.T) {
-			page, err := apistep.ListBooks(ctx, authClient, apistep.ListParams{
-				PageNum:  1,
-				PageSize: vars.MustInt("pageSize"),
-				ISBN:     nonexistentISBN,
-			})
-			require.NoError(t, err)
-			assert.Empty(t, page.Records)
-			assert.Zero(t, page.Total)
+		case "empty":
+			assert.Zero(t, env.Vars.MustInt("bookCount"))
 			r.SetResult(map[string]any{
-				"total":   page.Total,
-				"records": len(page.Records),
+				"branch":    "empty",
+				"bookCount": 0,
 			})
-		})
+		default:
+			t.Fatal("unknown branch:", env.Vars.Get("branch"))
+		}
+	})
 
-	default:
-		t.Fatal("unknown branch:", vars.Get("branch"))
-	}
-
-	if vars.MustInt("roleCount") > 0 {
+	if env.Vars.MustInt("roleCount") > 0 {
 		r.Note("管理员具备角色权限，流程完整执行")
 	}
 }

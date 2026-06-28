@@ -17,6 +17,7 @@ type Metrics struct {
 	failed         int
 	errors         map[string]int
 	buckets        map[int]*bucket
+	stepStats      map[string]*stepAccumulator
 	startedAt      time.Time
 	endedAt        time.Time
 }
@@ -101,6 +102,7 @@ func (m *Metrics) Snapshot() Snapshot {
 		StartedAt:      m.startedAt,
 		EndedAt:        m.endedAt,
 		BucketInterval: m.bucketInterval,
+		Steps:          m.stepSummariesLocked(),
 	}
 	snap.computeLatency(latencies)
 	snap.buildTimeSeries(m.buckets, m.bucketInterval)
@@ -137,6 +139,7 @@ type Snapshot struct {
 	ActualQPS      float64                  `json:"actual_qps"`
 	Errors         map[string]int           `json:"errors"`
 	Latency        LatencySummary           `json:"latency"`
+	Steps          []StepSummary            `json:"steps,omitempty"`
 	TimeSeries     []TimePoint              `json:"time_series"`
 	CustomSeries   map[string][]CustomPoint `json:"custom_series,omitempty"`
 	StartedAt      time.Time                `json:"started_at"`
