@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -131,6 +132,27 @@ func NewWithRouter(baseURL string, timeout time.Duration, router Router) *Client
 	}
 }
 
+// NewForLoadWithRouter 创建面向压测的 HTTP 客户端，复用 tuned Transport 以提升连接池效率。
+func NewForLoadWithRouter(baseURL string, timeout time.Duration, router Router) *Client {
+	return &Client{
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		router:     router,
+		authHeader: "Authorization",
+		httpClient: &http.Client{
+			Timeout:   timeout,
+			Transport: loadHTTPTransport(),
+		},
+	}
+}
+
+var loadHTTPTransport = sync.OnceValue(func() *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:        256,
+		MaxIdleConnsPerHost: 256,
+		IdleConnTimeout:     90 * time.Second,
+	}
+})
+
 // SetToken 设置认证 Token，后续请求将自动写入 authHeader。
 func (c *Client) SetToken(token string) {
 	c.authToken = token
@@ -141,14 +163,23 @@ func (c *Client) Token() string {
 	return c.authToken
 }
 
-// Clone 复制客户端（共享 Token 与路由，独立 HTTP 连接池），供压测 worker 使用。
+// Clone 复制客户端（共享 Token、路由与 Transport），供压测 worker 使用。
 func (c *Client) Clone() *Client {
 	if c == nil {
 		return nil
 	}
-	nc := NewWithRouter(c.baseURL, c.httpClient.Timeout, c.router)
-	nc.authHeader = c.authHeader
-	nc.authToken = c.authToken
+	nc := &Client{
+		baseURL:    c.baseURL,
+		router:     c.router,
+		authHeader: c.authHeader,
+		authToken:  c.authToken,
+	}
+	if c.httpClient != nil {
+		nc.httpClient = &http.Client{
+			Timeout:   c.httpClient.Timeout,
+			Transport: c.httpClient.Transport,
+		}
+	}
 	return nc
 }
 

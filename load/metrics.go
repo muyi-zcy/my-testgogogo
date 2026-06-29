@@ -207,10 +207,10 @@ func (s *Snapshot) computeLatency(latencies []time.Duration) {
 	s.Latency = LatencySummary{
 		Min: latencies[0],
 		Avg: sum / time.Duration(len(latencies)),
-		P50: percentile(latencies, 0.50),
-		P90: percentile(latencies, 0.90),
-		P95: percentile(latencies, 0.95),
-		P99: percentile(latencies, 0.99),
+		P50: percentileOfSorted(latencies, 0.50),
+		P90: percentileOfSorted(latencies, 0.90),
+		P95: percentileOfSorted(latencies, 0.95),
+		P99: percentileOfSorted(latencies, 0.99),
 		Max: latencies[len(latencies)-1],
 	}
 
@@ -223,11 +223,11 @@ func (s *Snapshot) computeLatency(latencies []time.Duration) {
 	}
 }
 
-func percentile(sorted []time.Duration, p float64) time.Duration {
+// percentileOfSorted 从已升序排列的延迟样本中取分位数。
+func percentileOfSorted(sorted []time.Duration, p float64) time.Duration {
 	if len(sorted) == 0 {
 		return 0
 	}
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
 	idx := int(float64(len(sorted)-1) * p)
 	if idx < 0 {
 		idx = 0

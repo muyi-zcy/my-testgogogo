@@ -86,10 +86,10 @@ func summarizeLatencies(latencies []time.Duration) LatencySummary {
 	return LatencySummary{
 		Min: sorted[0],
 		Avg: sum / time.Duration(len(sorted)),
-		P50: percentile(sorted, 0.50),
-		P90: percentile(sorted, 0.90),
-		P95: percentile(sorted, 0.95),
-		P99: percentile(sorted, 0.99),
+		P50: percentileOfSorted(sorted, 0.50),
+		P90: percentileOfSorted(sorted, 0.90),
+		P95: percentileOfSorted(sorted, 0.95),
+		P99: percentileOfSorted(sorted, 0.99),
 		Max: sorted[len(sorted)-1],
 	}
 }

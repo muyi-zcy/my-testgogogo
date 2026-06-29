@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/muyi-zcy/my-testgogogo/path"
@@ -98,8 +99,44 @@ type AuthCacheConfig struct {
 	RootPath string // 项目根目录
 }
 
+var configCache struct {
+	mu     sync.RWMutex
+	cfg    *Config
+	err    error
+	loaded bool
+}
+
 // Load 从项目 configs 目录加载并合并配置，应用默认值与校验规则。
+// 进程内缓存首次加载结果，避免重复读盘。
 func Load() (*Config, error) {
+	configCache.mu.RLock()
+	if configCache.loaded {
+		cfg, err := configCache.cfg, configCache.err
+		configCache.mu.RUnlock()
+		return cfg, err
+	}
+	configCache.mu.RUnlock()
+
+	configCache.mu.Lock()
+	defer configCache.mu.Unlock()
+	if configCache.loaded {
+		return configCache.cfg, configCache.err
+	}
+	configCache.cfg, configCache.err = loadFromDisk()
+	configCache.loaded = true
+	return configCache.cfg, configCache.err
+}
+
+// ResetCache 清除进程内配置缓存，供测试或需重新加载配置时使用。
+func ResetCache() {
+	configCache.mu.Lock()
+	defer configCache.mu.Unlock()
+	configCache.cfg = nil
+	configCache.err = nil
+	configCache.loaded = false
+}
+
+func loadFromDisk() (*Config, error) {
 	root, err := path.ModuleRoot()
 	if err != nil {
 		return nil, err

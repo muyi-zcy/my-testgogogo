@@ -77,13 +77,15 @@ func NewClient(t *testing.T, cfg *config.Config) *client.Client {
 func NewAuthenticatedClient(t *testing.T) *client.Client {
 	t.Helper()
 	SkipIfDisabled(t)
+	return NewAuthenticatedClientWithConfig(t, LoadConfig(t))
+}
 
-	cfg := LoadConfig(t)
+// NewAuthenticatedClientWithConfig 使用已加载的配置创建并完成认证的 HTTP 客户端。
+func NewAuthenticatedClientWithConfig(t *testing.T, cfg *config.Config) *client.Client {
+	t.Helper()
 	c := NewClient(t, cfg)
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
-	t.Cleanup(cancel)
-
+	ctx, _ := TestContext(t)
 	_, err := auth.Authenticate(ctx, c, cfg)
 	require.NoError(t, err, "authenticate before test")
 	return c
@@ -92,7 +94,9 @@ func NewAuthenticatedClient(t *testing.T) *client.Client {
 // TestContext 返回带超时的 context，默认 30 秒，通过 t.Cleanup 自动取消。
 func TestContext(t *testing.T) (context.Context, context.CancelFunc) {
 	t.Helper()
-	return context.WithTimeout(context.Background(), defaultTestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	t.Cleanup(cancel)
+	return ctx, cancel
 }
 
 // ClearAuthCache 清除 Token 本地缓存，用于登录相关测试的前置清理。
@@ -117,8 +121,8 @@ func NewScenarioEnv(t *testing.T) *runtime.Env {
 	cfg := LoadConfig(t)
 	ctx, _ := TestContext(t)
 	anon := NewClient(t, cfg)
-	auth := NewAuthenticatedClient(t)
-	return runtime.New(cfg, anon, auth, ctx)
+	authClient := NewAuthenticatedClientWithConfig(t, cfg)
+	return runtime.New(cfg, anon, authClient, ctx)
 }
 
 // EnableAPIReport 快捷启用单接口测试报告，分类默认为 CategoryAPI。

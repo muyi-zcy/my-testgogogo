@@ -67,7 +67,7 @@ func (b *bucket) toTimePoint(offsetSec int, interval time.Duration) TimePoint {
 	if len(b.latencies) > 0 {
 		sorted := append([]time.Duration(nil), b.latencies...)
 		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
-		tp.LatencyP95 = percentile(sorted, 0.95)
+		tp.LatencyP95 = percentileOfSorted(sorted, 0.95)
 	}
 	return tp
 }

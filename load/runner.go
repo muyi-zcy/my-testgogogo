@@ -38,7 +38,14 @@ func Run(ctx context.Context, input RunInput, newEnv func(*config.Config, *clien
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	baseClient := client.NewWithRouter(cfg.BaseURL, cfg.Timeout, cfg.Router)
+	baseClient := client.NewForLoadWithRouter(cfg.BaseURL, cfg.Timeout, cfg.Router)
+	authCtx, authCancel := context.WithTimeout(ctx, 15*time.Second)
+	if _, err := auth.Authenticate(authCtx, baseClient, cfg); err != nil {
+		authCancel()
+		return nil, fmt.Errorf("authenticate: %w", err)
+	}
+	authCancel()
+
 	opts := input.Options
 	metrics := NewMetrics(opts.BucketInterval)
 
@@ -76,17 +83,6 @@ loop:
 				workerClient := baseClient.Clone()
 				workerEnv := newEnv(cfg, workerClient)
 				workerEnv.BindMetrics(metrics)
-
-				authCtx, authCancel := context.WithTimeout(scenarioCtx, 15*time.Second)
-				_, authErr := auth.Authenticate(authCtx, workerClient, cfg)
-				authCancel()
-				if authErr != nil {
-					if !warming {
-						metrics.MarkStarted()
-						metrics.Record(0, authErr)
-					}
-					return
-				}
 
 				start := time.Now()
 				err := input.Meta.Fn(scenarioCtx, workerEnv)
